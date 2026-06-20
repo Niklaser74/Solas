@@ -1,0 +1,19 @@
+{
+  "name": "dimensas-engine",
+  "version": "0.1.0",
+  "description": "Dimensas beräkningsmotor — dimensionering av Victron-baserade el-/solsystem (last → batteri → sol → växelriktare → kabel/säkring). Rena, testbara funktioner.",
+  "type": "module",
+  "license": "UNLICENSED",
+  "private": true,
+  "main": "./src/engine/index.ts",
+  "scripts": {
+    "test": "vitest",
+    "test:run": "vitest run",
+    "typecheck": "tsc --noEmit",
+    "build": "tsc -p tsconfig.build.json"
+  },
+  "devDependencies": {
+    "typescript": "^5.6.3",
+    "vitest": "^2.1.8"
+  }
+}
