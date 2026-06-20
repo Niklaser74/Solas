@@ -14,16 +14,18 @@ import {
   NumberField,
   TextField,
   SelectField,
+  SegmentedControl,
   CheckboxField,
   ResultCard,
   BomTable,
   Disclaimer,
   Warnings,
   sek,
+  nf,
 } from "./components.js";
 
-const r1 = (n: number) => (Math.round(n * 10) / 10).toString();
-const r0 = (n: number) => Math.round(n).toString();
+const r1 = (n: number) => nf(n, 1);
+const r0 = (n: number) => nf(n, 0);
 
 /* ------------------------------------------------------------------ Steg 1 */
 
@@ -149,11 +151,11 @@ export function VoltageStep() {
 
   return (
     <Section title="Steg 2 — Systemspänning">
-      <SelectField
+      <SegmentedControl
         label="Systemspänning"
         value={value}
         options={[
-          { value: "auto", label: "Automatisk (tumregel)" },
+          { value: "auto", label: "Auto" },
           { value: "12", label: "12 V" },
           { value: "24", label: "24 V" },
           { value: "48", label: "48 V" },

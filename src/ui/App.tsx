@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useProject, useDesign } from "../state/projectStore.js";
 import { usePdfExport } from "../pdf/usePdfExport.js";
+import { Logo } from "./Logo.js";
 import {
   LoadStep,
   VoltageStep,
@@ -42,7 +43,7 @@ export function App() {
   return (
     <div className="app">
       <header className="app-header">
-        <h1>Dimensas</h1>
+        <Logo />
         <span className="tagline">Victron systemdesigner — last → BOM</span>
       </header>
 

@@ -1,0 +1,90 @@
+/* ============================================================
+   Dimensas — Design Tokens (CSS Custom Properties)
+   v1.0.0 · brand handoff, source of truth for values
+   ============================================================ */
+
+:root {
+  /* ---- Accent (the only brand color) ---- */
+  --ds-accent: #0C7A4D;
+  --ds-accent-deep: #06402A;
+  --ds-signal: #1FB877;
+
+  /* ---- Neutrals (ink + stone) ---- */
+  --ds-ink: #15181B;
+  --ds-graphite: #2A2E32;
+  --ds-stone-700: #54554E;
+  --ds-stone-500: #8A8980;
+  --ds-stone-300: #C9C7BE;
+  --ds-stone-200: #E0DED6;
+  --ds-stone-100: #EFEEE9;
+  --ds-paper: #F2F1EC;
+  --ds-white: #FFFFFF;
+
+  /* ---- Functional (status only) ---- */
+  --ds-success: #0C7A4D;
+  --ds-warning: #C9760A;
+  --ds-warning-text: #7A4E0C;
+  --ds-warning-deep: #5E3C09;
+  --ds-warning-bg: #FBF3E7;
+  --ds-danger: #C2341D;
+
+  /* ---- Typography ---- */
+  --ds-font-sans: 'Familjen Grotesk', system-ui, sans-serif;
+  --ds-font-mono: 'IBM Plex Mono', ui-monospace, monospace;
+  --ds-fw-regular: 400;
+  --ds-fw-medium: 500;
+  --ds-fw-semibold: 600;
+  --ds-fw-bold: 700;
+
+  /* ---- Spacing (4px grid) ---- */
+  --ds-space-1: 4px;
+  --ds-space-2: 8px;
+  --ds-space-3: 12px;
+  --ds-space-4: 16px;
+  --ds-space-5: 20px;
+  --ds-space-6: 24px;
+  --ds-space-8: 32px;
+  --ds-space-10: 40px;
+  --ds-space-12: 48px;
+  --ds-space-16: 64px;
+  --ds-space-20: 80px;
+  --ds-space-22: 88px;
+
+  /* ---- Radius ---- */
+  --ds-radius-sm: 6px;
+  --ds-radius-md: 9px;
+  --ds-radius-lg: 11px;
+  --ds-radius-xl: 14px;
+  --ds-radius-2xl: 16px;
+  --ds-radius-3xl: 18px;
+  --ds-radius-pill: 20px;
+  --ds-radius-full: 9999px;
+
+  /* ---- Borders ---- */
+  --ds-border-hairline: 1px solid var(--ds-stone-200);
+  --ds-border-hairline-dark: 1px solid var(--ds-graphite);
+  --ds-border-input: 1.5px solid var(--ds-stone-300);
+  --ds-border-strong: 1.5px solid var(--ds-ink);
+
+  /* ---- Shadows (used sparingly; prefer borders) ---- */
+  --ds-shadow-card: 0 1px 3px rgba(0, 0, 0, 0.06);
+  --ds-shadow-frame: 0 30px 60px rgba(0, 0, 0, 0.4);
+
+  /* ---- Motion ---- */
+  --ds-duration-fast: 120ms;
+  --ds-duration-base: 200ms;
+  --ds-easing: cubic-bezier(0.2, 0, 0, 1);
+
+  /* ---- Layout ---- */
+  --ds-content-max: 1120px;
+  --ds-page-px: 40px;
+  --ds-section-py: 88px;
+}
+
+/* Numbers, units, specs, prices, article numbers -> always mono, tabular */
+.ds-num,
+.ds-spec,
+.ds-data {
+  font-family: var(--ds-font-mono);
+  font-feature-settings: "tnum" 1;
+}

@@ -18,14 +18,14 @@ describe("Guide", () => {
 
   it("visar lastresultat för stuga-mallen i steg 1", () => {
     renderApp();
-    // Stuga-mallen ger 1445 Wh/dygn (handräknat facit).
-    expect(screen.getByText("1445 Wh/dygn")).toBeInTheDocument();
+    // Stuga-mallen ger 1445 Wh/dygn (svensk formatering: "1 445").
+    expect(screen.getByText(/1\s?445 Wh\/dygn/)).toBeInTheDocument();
   });
 
   it("når BOM-steget med rader och total", () => {
     renderApp();
     fireEvent.click(screen.getByText("BOM & offert"));
-    expect(screen.getByText("Komponent")).toBeInTheDocument();
+    expect(screen.getByText("Artikel")).toBeInTheDocument();
     // Stuga (AGM) väljer Phoenix-växelriktaren och visar en total.
     expect(screen.getByText("Phoenix Inverter 12/1200")).toBeInTheDocument();
     expect(screen.getByText("Totalt")).toBeInTheDocument();
