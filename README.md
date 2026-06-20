@@ -74,24 +74,26 @@ result.mainCable.area.selectedAreaMm2; // vald kabelarea (mm²)
 result.mainCable.fuse.ratingA;      // säkring (A)
 ```
 
-## Deploy (Cloudflare Pages)
+## Deploy (Cloudflare Workers Static Assets)
 
-Appen hostas på **dimensas.se** via Cloudflare Pages (statisk Vite-SPA).
+Appen hostas på **dimensas.se** via Cloudflare Workers (statiska assets) — en
+statisk Vite-SPA, konfigurerad i `wrangler.toml`.
 
 - **Build-kommando:** `npm run build`
 - **Output-katalog:** `dist`
 - **Node-version:** 22 (`.nvmrc`)
-- `public/_redirects` ger SPA-fallback, `public/_headers` sätter säkerhets-
-  och cache-headers. Vite kopierar `public/` till `dist/` vid bygget.
+- `wrangler.toml` deployar `dist/` som statiska assets med SPA-fallback
+  (`not_found_handling = "single-page-application"`). `public/_headers` sätter
+  säkerhets- och cache-headers; Vite kopierar `public/` till `dist/`.
 
-Anslut repot i Cloudflare Pages-dashboarden (Git-integration) så byggs och
-deployas `main`/PR-previews automatiskt — inga hemligheter i repot.
+Anslut repot i Cloudflare-dashboarden (Workers & Pages → Connect to Git) så
+byggs och deployas `main`/PR-previews automatiskt — inga hemligheter i repot.
 
 ### Stackbeslut (brief §7)
 
-Backend/data är låst till **Cloudflare**: Pages nu, och **Pages Functions +
-D1/KV** för konton och sparade projekt i Fas 4 (ersätter dagens `localStorage`).
-EU-dataresidens via Cloudflares EU-regioner.
+Backend/data är låst till **Cloudflare**: Workers Static Assets nu, och
+**Workers Functions + D1/KV** för konton och sparade projekt i Fas 4 (ersätter
+dagens `localStorage`). EU-dataresidens via Cloudflares EU-regioner.
 
 ## Roadmap (kommande faser)
 
