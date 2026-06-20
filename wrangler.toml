@@ -1,0 +1,11 @@
+# Cloudflare Workers — statisk SPA-hosting (Workers Static Assets).
+# Dimensas är en statisk Vite-byggd app: ingen Worker-kod, bara assets i dist/.
+# `wrangler deploy` laddar upp dist/ och serverar det. SPA-fallback gör att
+# alla vägar serveras av index.html (samma effekt som public/_redirects).
+
+name = "dimensas"
+compatibility_date = "2025-01-01"
+
+[assets]
+directory = "./dist"
+not_found_handling = "single-page-application"
