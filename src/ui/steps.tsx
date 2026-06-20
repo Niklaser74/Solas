@@ -8,6 +8,7 @@ import { TYPICAL_DOD } from "../engine/battery.js";
 import { applianceTemplates, sunRegions } from "../data/templates.js";
 import type { TemplateKey } from "../data/templates.js";
 import { useProject, useProjectDispatch, useDesign } from "../state/projectStore.js";
+import { LayoutCanvas } from "../layout/LayoutCanvas.js";
 import {
   Section,
   NumberField,
@@ -343,7 +344,21 @@ export function DistributionStep() {
   );
 }
 
-/* ------------------------------------------------------------------ Steg 7/8 */
+/* ------------------------------------------------------------------ Steg 7 */
+
+export function LayoutStep() {
+  return (
+    <Section title="Steg 7 — Fysisk layout & kabeldragning">
+      <p className="hint">
+        Rita ytan, placera komponenter i verklig storlek och dra kabel. Längden från ett run kan sättas som
+        huvudkabel och matar då Steg 8. (Mallbibliotek och flera zoner kommer senare.)
+      </p>
+      <LayoutCanvas />
+    </Section>
+  );
+}
+
+/* ------------------------------------------------------------------ Steg 8 */
 
 export function CableStep() {
   const state = useProject();

@@ -31,4 +31,34 @@ export interface ProjectState {
     mainCableLengthM: number;
     maxVoltDropPct: number;
   };
+  layout: LayoutState;
+}
+
+/** En komponent placerad i layouten. */
+export interface LayoutPlacement {
+  id: string;
+  componentId: string;
+  /** Position i zonen, mm (övre vänstra hörnet). */
+  x: number;
+  y: number;
+  /** Rotation i grader (0/90/180/270). */
+  rotation: number;
+}
+
+/** Ett kabelrun mellan två anslutningspunkter. */
+export interface LayoutRun {
+  id: string;
+  fromPlacementId: string;
+  fromPointId: string;
+  toPlacementId: string;
+  toPointId: string;
+  /** Slack i procent (böjradie/marginal). */
+  slackPercent: number;
+}
+
+/** Fysisk layout (Steg 7): en fri yta + placeringar + kabelrun. */
+export interface LayoutState {
+  zone: { width: number; height: number };
+  placements: LayoutPlacement[];
+  runs: LayoutRun[];
 }

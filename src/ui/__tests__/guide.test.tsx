@@ -30,4 +30,12 @@ describe("Guide", () => {
     expect(screen.getByText("Phoenix Inverter 12/1200")).toBeInTheDocument();
     expect(screen.getByText("Totalt")).toBeInTheDocument();
   });
+
+  it("kan placera en komponent i layout-steget", () => {
+    renderApp();
+    fireEvent.click(screen.getByText("Layout"));
+    fireEvent.click(screen.getByRole("button", { name: "+ Cerbo GX" }));
+    // Den placerade komponentens etikett renderas i SVG-canvasen.
+    expect(screen.getByText("Cerbo GX", { exact: true })).toBeInTheDocument();
+  });
 });

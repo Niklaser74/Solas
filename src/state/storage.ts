@@ -1,11 +1,16 @@
 /** localStorage-persistens för projekt (Fas 4 ersätter detta med konton). */
 
-import type { ProjectState } from "./types.js";
+import type { ProjectState, LayoutState } from "./types.js";
 import { applianceTemplates, sunRegions } from "../data/templates.js";
 import { TYPICAL_DOD } from "../engine/battery.js";
 
 const KEY_CURRENT = "dimensas:current";
 const KEY_SAVED = "dimensas:saved";
+
+/** Tom standardlayout: en fri yta på 1000×600 mm. */
+export function defaultLayout(): LayoutState {
+  return { zone: { width: 1000, height: 600 }, placements: [], runs: [] };
+}
 
 /** Standardprojekt (stuga-mall). */
 export function defaultState(): ProjectState {
@@ -24,7 +29,13 @@ export function defaultState(): ProjectState {
     },
     inverter: { hasInductiveLoads: true },
     cable: { mainCableLengthM: 2.5, maxVoltDropPct: 3 },
+    layout: defaultLayout(),
   };
+}
+
+/** Fyller i fält som saknas i ett inläst (äldre) projekt. */
+function normalize(state: ProjectState): ProjectState {
+  return { ...state, layout: state.layout ?? defaultLayout() };
 }
 
 function safeParse<T>(raw: string | null): T | null {
@@ -39,7 +50,8 @@ function safeParse<T>(raw: string | null): T | null {
 /** Läser senast använda projekt, eller standard. */
 export function loadCurrent(): ProjectState {
   if (typeof localStorage === "undefined") return defaultState();
-  return safeParse<ProjectState>(localStorage.getItem(KEY_CURRENT)) ?? defaultState();
+  const parsed = safeParse<ProjectState>(localStorage.getItem(KEY_CURRENT));
+  return parsed ? normalize(parsed) : defaultState();
 }
 
 /** Sparar aktuellt projekt (autospar). */

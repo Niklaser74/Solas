@@ -10,6 +10,7 @@ import {
   SolarStep,
   InverterStep,
   DistributionStep,
+  LayoutStep,
   CableStep,
   BomStep,
 } from "./steps.js";
@@ -21,6 +22,7 @@ const STEPS = [
   "Sol",
   "Växelriktare",
   "DC-distribution",
+  "Layout",
   "Kabel & säkring",
   "BOM & offert",
 ];
@@ -64,8 +66,9 @@ export function App() {
         {step === 3 && <SolarStep />}
         {step === 4 && <InverterStep />}
         {step === 5 && <DistributionStep />}
-        {step === 6 && <CableStep />}
-        {step === 7 && <BomStep onExport={onExport} exporting={exporting} />}
+        {step === 6 && <LayoutStep />}
+        {step === 7 && <CableStep />}
+        {step === 8 && <BomStep onExport={onExport} exporting={exporting} />}
       </main>
 
       <footer className="app-footer">

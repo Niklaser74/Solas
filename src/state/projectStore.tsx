@@ -2,7 +2,7 @@
 
 import { createContext, useContext, useEffect, useMemo, useReducer } from "react";
 import type { ReactNode, Dispatch } from "react";
-import type { ProjectState } from "./types.js";
+import type { ProjectState, LayoutState } from "./types.js";
 import { loadCurrent, saveCurrent } from "./storage.js";
 import { designSystem } from "../engine/index.js";
 import type { DesignSystemInput, DesignSystemResult } from "../engine/index.js";
@@ -15,6 +15,7 @@ export type ProjectAction =
   | { type: "patchSolar"; patch: Partial<ProjectState["solar"]> }
   | { type: "patchInverter"; patch: Partial<ProjectState["inverter"]> }
   | { type: "patchCable"; patch: Partial<ProjectState["cable"]> }
+  | { type: "setLayout"; layout: LayoutState }
   | { type: "load"; state: ProjectState };
 
 function reducer(state: ProjectState, action: ProjectAction): ProjectState {
@@ -29,6 +30,8 @@ function reducer(state: ProjectState, action: ProjectAction): ProjectState {
       return { ...state, inverter: { ...state.inverter, ...action.patch } };
     case "patchCable":
       return { ...state, cable: { ...state.cable, ...action.patch } };
+    case "setLayout":
+      return { ...state, layout: action.layout };
     case "load":
       return action.state;
   }
