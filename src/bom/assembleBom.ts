@@ -28,10 +28,18 @@ export interface BomLineItem {
 
 /** Val som styr komponentmatchningen. */
 export interface BomOptions {
-  /** Vald batterikemi (matchas mot seed-batteriernas spec). */
+  /** Vald batterikemi (matchas mot seed-batteriernas spec) för auto-val. */
   batteryChemistry: BatteryChemistry;
   /** Enkelvägslängd för huvudkabeln, m (samma som matades till Steg 8). */
   mainCableLengthM: number;
+  /** Vald batterimodell (komponent-id). Anges den används den; annars auto via kemi. */
+  batteryComponentId?: string;
+  /** Manuellt antal batterier (> 0). Annars auto-beräknat. */
+  batteryQuantity?: number;
+  /** Vald panelmodell (komponent-id). Anges den används den; annars första panelen. */
+  panelComponentId?: string;
+  /** Manuellt antal paneler (> 0). Annars auto-beräknat. */
+  panelQuantity?: number;
 }
 
 /** Resultat av BOM-monteringen. */
@@ -74,33 +82,59 @@ export function assembleBom(
     });
   };
 
-  // --- Batteri ---
-  const battery = byType(components, "battery").find(
-    (c) => c.specs.chemistry === opts.batteryChemistry,
-  );
+  // --- Batteri (vald modell eller auto via kemi) ---
+  const battery = opts.batteryComponentId
+    ? components.find((c) => c.typ === "battery" && c.id === opts.batteryComponentId)
+    : byType(components, "battery").find((c) => c.specs.chemistry === opts.batteryChemistry);
   if (!battery) {
-    warnings.push(`Inget ${opts.batteryChemistry}-batteri i databasen.`);
+    warnings.push(
+      opts.batteryComponentId
+        ? "Vald batterimodell hittades inte i databasen."
+        : `Inget ${opts.batteryChemistry}-batteri i databasen.`,
+    );
   } else {
     const battV = num(battery.specs.nominalVoltageV) ?? vsys;
     const capAh = num(battery.specs.capacityAh) ?? 0;
     const series = Math.max(1, Math.round(vsys / battV));
-    const parallel = capAh > 0 ? Math.ceil(design.battery.requiredAh / capAh) : 1;
-    const quantity = series * parallel;
-    const note =
-      `${series} i serie × ${parallel} parallellt för ${vsys} V och ` +
-      `${Math.round(design.battery.requiredAh)} Ah-behov.`;
+    const autoParallel = capAh > 0 ? Math.ceil(design.battery.requiredAh / capAh) : 1;
+    const autoQty = series * autoParallel;
+    const manualQty = opts.batteryQuantity && opts.batteryQuantity > 0 ? opts.batteryQuantity : null;
+    const quantity = manualQty ?? autoQty;
+    const note = manualQty
+      ? `Manuellt antal ${quantity} (förslag: ${autoQty}).`
+      : `${series} i serie × ${autoParallel} parallellt för ${vsys} V och ${Math.round(design.battery.requiredAh)} Ah-behov.`;
     add(battery, quantity, note);
+    const providedAh = (quantity / series) * capAh;
+    if (capAh > 0 && providedAh < design.battery.requiredAh) {
+      warnings.push(
+        `Batteribanken ger ~${Math.round(providedAh)} Ah men behovet är ${Math.round(design.battery.requiredAh)} Ah.`,
+      );
+    }
   }
 
-  // --- Solpaneler ---
-  const panel = byType(components, "panel")[0];
+  // --- Solpaneler (vald modell eller första panelen) ---
+  const panel = opts.panelComponentId
+    ? components.find((c) => c.typ === "panel" && c.id === opts.panelComponentId)
+    : byType(components, "panel")[0];
   let panelCount = 0;
   if (!panel) {
-    warnings.push("Ingen solpanel i databasen.");
+    warnings.push(
+      opts.panelComponentId ? "Vald panelmodell hittades inte i databasen." : "Ingen solpanel i databasen.",
+    );
   } else {
     const panelWp = num(panel.specs.wp) ?? 1;
-    panelCount = Math.ceil(design.solar.requiredWp / panelWp);
-    add(panel, panelCount, `${panelCount} × ${panelWp} Wp ≈ ${panelCount * panelWp} Wp.`);
+    const autoCount = Math.ceil(design.solar.requiredWp / panelWp);
+    const manualCount = opts.panelQuantity && opts.panelQuantity > 0 ? opts.panelQuantity : null;
+    panelCount = manualCount ?? autoCount;
+    const note = manualCount
+      ? `Manuellt antal ${panelCount} × ${panelWp} Wp ≈ ${panelCount * panelWp} Wp (förslag: ${autoCount}).`
+      : `${panelCount} × ${panelWp} Wp ≈ ${panelCount * panelWp} Wp.`;
+    add(panel, panelCount, note);
+    if (panelCount * panelWp < design.solar.requiredWp) {
+      warnings.push(
+        `Solcellseffekten ${panelCount * panelWp} Wp är under behovet ${Math.round(design.solar.requiredWp)} Wp.`,
+      );
+    }
   }
 
   // --- MPPT (förenklad dimensionering i v1) ---

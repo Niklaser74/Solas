@@ -7,6 +7,7 @@ import type { BatteryChemistry } from "../engine/battery.js";
 import { TYPICAL_DOD } from "../engine/battery.js";
 import { applianceTemplates, sunRegions } from "../data/templates.js";
 import type { TemplateKey } from "../data/templates.js";
+import { SEED_COMPONENTS } from "../data/seed.js";
 import { useProject, useProjectDispatch, useDesign } from "../state/projectStore.js";
 import { LayoutCanvas } from "../layout/LayoutCanvas.js";
 import {
@@ -26,6 +27,27 @@ import {
 
 const r1 = (n: number) => nf(n, 1);
 const r0 = (n: number) => nf(n, 0);
+
+const specNum = (c: { specs: Record<string, unknown> }, key: string): number =>
+  typeof c.specs[key] === "number" ? (c.specs[key] as number) : 0;
+
+const AUTO = "auto";
+
+/** Batterimodeller, sorterade på kapacitet, för modellväljaren. */
+const batteryModelOptions = [
+  { value: AUTO, label: "Auto (rekommenderad)" },
+  ...SEED_COMPONENTS.filter((c) => c.typ === "battery")
+    .sort((a, b) => specNum(a, "capacityAh") - specNum(b, "capacityAh"))
+    .map((c) => ({ value: c.id, label: c.modell })),
+];
+
+/** Panelmodeller, sorterade på effekt, för modellväljaren. */
+const panelModelOptions = [
+  { value: AUTO, label: "Auto (rekommenderad)" },
+  ...SEED_COMPONENTS.filter((c) => c.typ === "panel")
+    .sort((a, b) => specNum(a, "wp") - specNum(b, "wp"))
+    .map((c) => ({ value: c.id, label: c.modell })),
+];
 
 /* ------------------------------------------------------------------ Steg 1 */
 
@@ -180,16 +202,42 @@ export function VoltageStep() {
 export function BatteryStep() {
   const state = useProject();
   const dispatch = useProjectDispatch();
-  const { design } = useDesign();
+  const { design, bom } = useDesign();
 
   const setChemistry = (chemistry: BatteryChemistry) =>
     dispatch({ type: "patchBattery", patch: { chemistry, dod: TYPICAL_DOD[chemistry] } });
 
+  const setBatteryModel = (id: string) => {
+    if (id === AUTO) {
+      dispatch({ type: "patchBattery", patch: { selectedComponentId: null } });
+      return;
+    }
+    const c = SEED_COMPONENTS.find((x) => x.id === id);
+    const chem = c?.specs.chemistry;
+    const dod = c?.specs.recommendedDod;
+    dispatch({
+      type: "patchBattery",
+      patch: {
+        selectedComponentId: id,
+        ...(typeof chem === "string" ? { chemistry: chem as BatteryChemistry } : {}),
+        ...(typeof dod === "number" ? { dod } : {}),
+      },
+    });
+  };
+
+  const battLine = bom?.items.find((i) => i.component.typ === "battery");
+
   return (
     <Section title="Steg 3 — Batteribank">
       <div className="grid">
+        <SelectField
+          label="Batterimodell"
+          value={state.battery.selectedComponentId ?? AUTO}
+          options={batteryModelOptions}
+          onChange={setBatteryModel}
+        />
         <SelectField<BatteryChemistry>
-          label="Batterikemi"
+          label="Batterikemi (för auto)"
           value={state.battery.chemistry}
           options={[
             { value: "LiFePO4", label: "LiFePO4" },
@@ -225,14 +273,29 @@ export function BatteryStep() {
           min={0.5}
           onChange={(efficiency) => dispatch({ type: "patchBattery", patch: { efficiency } })}
         />
+        <NumberField
+          label="Antal batterier (0 = auto)"
+          value={state.battery.quantityOverride ?? 0}
+          min={0}
+          onChange={(v) =>
+            dispatch({ type: "patchBattery", patch: { quantityOverride: v > 0 ? Math.round(v) : null } })
+          }
+        />
       </div>
       {design && (
         <ResultCard
           rows={[
             { label: "Kapacitetsbehov", value: `${r0(design.battery.requiredAh)} Ah` },
             { label: "Uttagbar energi", value: `${r0(design.battery.usableEnergyWh)} Wh` },
+            ...(battLine
+              ? [
+                  { label: "Valt batteri", value: `${battLine.quantity} × ${battLine.component.modell}` },
+                  { label: "Batterikostnad", value: sek(battLine.lineTotalSek) },
+                ]
+              : []),
           ]}
           rationale={design.battery.rationale}
+          warnings={bom?.warnings.filter((w) => /batteri/i.test(w))}
         />
       )}
     </Section>
@@ -244,7 +307,7 @@ export function BatteryStep() {
 export function SolarStep() {
   const state = useProject();
   const dispatch = useProjectDispatch();
-  const { design } = useDesign();
+  const { design, bom } = useDesign();
 
   const setRegion = (regionKey: string) => {
     const region = sunRegions[regionKey];
@@ -256,9 +319,20 @@ export function SolarStep() {
     });
   };
 
+  const setPanelModel = (id: string) =>
+    dispatch({ type: "patchSolar", patch: { panelComponentId: id === AUTO ? null : id } });
+
+  const panelLine = bom?.items.find((i) => i.component.typ === "panel");
+
   return (
     <Section title="Steg 4 — Solpaneler">
       <div className="grid">
+        <SelectField
+          label="Panelmodell"
+          value={state.solar.panelComponentId ?? AUTO}
+          options={panelModelOptions}
+          onChange={setPanelModel}
+        />
         <SelectField
           label="Region"
           value={state.solar.regionKey}
@@ -287,11 +361,28 @@ export function SolarStep() {
           min={0.1}
           onChange={(snowFactor) => dispatch({ type: "patchSolar", patch: { snowFactor } })}
         />
+        <NumberField
+          label="Antal paneler (0 = auto)"
+          value={state.solar.panelQuantityOverride ?? 0}
+          min={0}
+          onChange={(v) =>
+            dispatch({ type: "patchSolar", patch: { panelQuantityOverride: v > 0 ? Math.round(v) : null } })
+          }
+        />
       </div>
       {design && (
         <ResultCard
-          rows={[{ label: "Effektbehov", value: `${r0(design.solar.requiredWp)} Wp` }]}
+          rows={[
+            { label: "Effektbehov", value: `${r0(design.solar.requiredWp)} Wp` },
+            ...(panelLine
+              ? [
+                  { label: "Valda paneler", value: `${panelLine.quantity} × ${panelLine.component.modell}` },
+                  { label: "Panelkostnad", value: sek(panelLine.lineTotalSek) },
+                ]
+              : []),
+          ]}
           rationale={design.solar.rationale}
+          warnings={bom?.warnings.filter((w) => /panel|solcell/i.test(w))}
         />
       )}
     </Section>

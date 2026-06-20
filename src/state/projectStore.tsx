@@ -102,6 +102,10 @@ export function useDesign(): DesignOutput {
       const bom = assembleBom(design, {
         batteryChemistry: state.battery.chemistry,
         mainCableLengthM: state.cable.mainCableLengthM,
+        batteryComponentId: state.battery.selectedComponentId ?? undefined,
+        batteryQuantity: state.battery.quantityOverride ?? undefined,
+        panelComponentId: state.solar.panelComponentId ?? undefined,
+        panelQuantity: state.solar.panelQuantityOverride ?? undefined,
       });
       return { design, bom, error: null };
     } catch (e) {
