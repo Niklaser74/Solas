@@ -98,6 +98,57 @@ describe("assembleBom — Husbil LiFePO4", () => {
   });
 });
 
+describe("assembleBom — manuellt val", () => {
+  const design = designSystem(stuga); // AGM, requiredAh ≈ 845
+
+  it("använder vald batterimodell istället för auto", () => {
+    const bom = assembleBom(design, {
+      batteryChemistry: "AGM",
+      mainCableLengthM: 2.5,
+      batteryComponentId: "battery-lifepo4-12-200",
+    });
+    const batt = bom.items.find((i) => i.component.typ === "battery");
+    expect(batt?.component.id).toBe("battery-lifepo4-12-200");
+    // 845 Ah / 200 Ah → 5 st (12 V, serie 1)
+    expect(batt?.quantity).toBe(5);
+  });
+
+  it("respekterar manuellt antal och varnar vid underdimension", () => {
+    const bom = assembleBom(design, {
+      batteryChemistry: "AGM",
+      mainCableLengthM: 2.5,
+      batteryComponentId: "battery-lifepo4-12-200",
+      batteryQuantity: 2,
+    });
+    const batt = bom.items.find((i) => i.component.typ === "battery");
+    expect(batt?.quantity).toBe(2);
+    expect(bom.warnings.some((w) => /Batteribanken ger/.test(w))).toBe(true);
+  });
+
+  it("använder vald panelmodell", () => {
+    const bom = assembleBom(design, {
+      batteryChemistry: "AGM",
+      mainCableLengthM: 2.5,
+      panelComponentId: "panel-mono-350",
+    });
+    const panel = bom.items.find((i) => i.component.typ === "panel");
+    expect(panel?.component.id).toBe("panel-mono-350");
+    // 1835 Wp / 350 Wp → 6 st
+    expect(panel?.quantity).toBe(6);
+  });
+
+  it("respekterar manuellt panelantal och varnar vid underdimension", () => {
+    const bom = assembleBom(design, {
+      batteryChemistry: "AGM",
+      mainCableLengthM: 2.5,
+      panelQuantity: 2,
+    });
+    const panel = bom.items.find((i) => i.component.typ === "panel");
+    expect(panel?.quantity).toBe(2);
+    expect(bom.warnings.some((w) => /Solcellseffekten/.test(w))).toBe(true);
+  });
+});
+
 describe("assembleBom — Liten villa (24 V)", () => {
   const bom = assembleBom(designSystem(villa), { batteryChemistry: "LiFePO4", mainCableLengthM: 2 });
 

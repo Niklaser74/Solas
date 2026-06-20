@@ -17,12 +17,20 @@ export interface ProjectState {
     dod: number;
     tempFactor: number;
     efficiency: number;
+    /** Vald batterimodell (komponent-id), eller null för auto/rekommenderad. */
+    selectedComponentId: string | null;
+    /** Manuellt antal batterier, eller null för auto-beräknat. */
+    quantityOverride: number | null;
   };
   solar: {
     regionKey: string;
     peakSunHoursWorstMonth: number;
     systemLosses: number;
     snowFactor: number;
+    /** Vald panelmodell (komponent-id), eller null för auto/rekommenderad. */
+    panelComponentId: string | null;
+    /** Manuellt antal paneler, eller null för auto-beräknat. */
+    panelQuantityOverride: number | null;
   };
   inverter: {
     hasInductiveLoads: boolean;

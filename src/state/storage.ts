@@ -20,12 +20,22 @@ export function defaultState(): ProjectState {
     typ: "stuga",
     appliances: applianceTemplates.stuga.map((a) => ({ ...a })),
     voltageOverride: null,
-    battery: { autonomyDays: 3, chemistry: "AGM", dod: TYPICAL_DOD.AGM, tempFactor: 0.9, efficiency: 0.95 },
+    battery: {
+      autonomyDays: 3,
+      chemistry: "AGM",
+      dod: TYPICAL_DOD.AGM,
+      tempFactor: 0.9,
+      efficiency: 0.95,
+      selectedComponentId: null,
+      quantityOverride: null,
+    },
     solar: {
       regionKey: "syd",
       peakSunHoursWorstMonth: region.worstMonthPeakSunHours,
       systemLosses: 0.75,
       snowFactor: region.defaultSnowFactor,
+      panelComponentId: null,
+      panelQuantityOverride: null,
     },
     inverter: { hasInductiveLoads: true },
     cable: { mainCableLengthM: 2.5, maxVoltDropPct: 3 },
@@ -35,7 +45,20 @@ export function defaultState(): ProjectState {
 
 /** Fyller i fält som saknas i ett inläst (äldre) projekt. */
 function normalize(state: ProjectState): ProjectState {
-  return { ...state, layout: state.layout ?? defaultLayout() };
+  return {
+    ...state,
+    layout: state.layout ?? defaultLayout(),
+    battery: {
+      ...state.battery,
+      selectedComponentId: state.battery?.selectedComponentId ?? null,
+      quantityOverride: state.battery?.quantityOverride ?? null,
+    },
+    solar: {
+      ...state.solar,
+      panelComponentId: state.solar?.panelComponentId ?? null,
+      panelQuantityOverride: state.solar?.panelQuantityOverride ?? null,
+    },
+  };
 }
 
 function safeParse<T>(raw: string | null): T | null {
