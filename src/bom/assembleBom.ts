@@ -1,0 +1,195 @@
+/**
+ * BOM-montering (Steg 9) — ren funktion.
+ *
+ * Tar ett `designSystem()`-resultat och sätter ihop en itemiserad
+ * komponentlista med SEK-priser från komponentdatabasen. Kabel ingår som
+ * metervara (fram + retur) och säkringen matchas mot beräknad märkström.
+ *
+ * Komponentvalet använder seed-databasen (`SEED_COMPONENTS`) i v1. Logiken är
+ * medvetet enkel och försedd med noteringar/varningar där antaganden görs —
+ * den kurerade databasen och finare matchning hör till senare faser.
+ */
+
+import type { DesignSystemResult } from "../engine/index.js";
+import { mpptCheck } from "../engine/index.js";
+import type { BatteryChemistry } from "../engine/battery.js";
+import type { Component } from "../data/types.js";
+import { SEED_COMPONENTS } from "../data/seed.js";
+
+/** En rad i BOM:en. */
+export interface BomLineItem {
+  component: Component;
+  quantity: number;
+  unitPriceSek: number;
+  lineTotalSek: number;
+  /** Förklaring/antagande på svenska. */
+  note?: string;
+}
+
+/** Val som styr komponentmatchningen. */
+export interface BomOptions {
+  /** Vald batterikemi (matchas mot seed-batteriernas spec). */
+  batteryChemistry: BatteryChemistry;
+  /** Enkelvägslängd för huvudkabeln, m (samma som matades till Steg 8). */
+  mainCableLengthM: number;
+}
+
+/** Resultat av BOM-monteringen. */
+export interface Bom {
+  items: BomLineItem[];
+  /** Summa exkl. ev. avdrag, SEK. */
+  totalSek: number;
+  /** Underlag för grönt avdrag (sol + batteri), SEK. Netto är Fas 5. */
+  greenEligibleSek: number;
+  /** Varningar på svenska (saknade komponenter, antaganden). */
+  warnings: string[];
+}
+
+function num(v: unknown): number | undefined {
+  return typeof v === "number" ? v : undefined;
+}
+
+function byType(components: readonly Component[], typ: Component["typ"]): Component[] {
+  return components.filter((c) => c.typ === typ);
+}
+
+/** Sätter ihop en BOM från ett dimensioneringsresultat. */
+export function assembleBom(
+  design: DesignSystemResult,
+  opts: BomOptions,
+  components: readonly Component[] = SEED_COMPONENTS,
+): Bom {
+  const items: BomLineItem[] = [];
+  const warnings: string[] = [];
+  const vsys = design.systemVoltage.voltage;
+
+  const add = (component: Component, quantity: number, note?: string) => {
+    const unitPriceSek = component.prisSek;
+    items.push({
+      component,
+      quantity,
+      unitPriceSek,
+      lineTotalSek: unitPriceSek * quantity,
+      note,
+    });
+  };
+
+  // --- Batteri ---
+  const battery = byType(components, "battery").find(
+    (c) => c.specs.chemistry === opts.batteryChemistry,
+  );
+  if (!battery) {
+    warnings.push(`Inget ${opts.batteryChemistry}-batteri i databasen.`);
+  } else {
+    const battV = num(battery.specs.nominalVoltageV) ?? vsys;
+    const capAh = num(battery.specs.capacityAh) ?? 0;
+    const series = Math.max(1, Math.round(vsys / battV));
+    const parallel = capAh > 0 ? Math.ceil(design.battery.requiredAh / capAh) : 1;
+    const quantity = series * parallel;
+    const note =
+      `${series} i serie × ${parallel} parallellt för ${vsys} V och ` +
+      `${Math.round(design.battery.requiredAh)} Ah-behov.`;
+    add(battery, quantity, note);
+  }
+
+  // --- Solpaneler ---
+  const panel = byType(components, "panel")[0];
+  let panelCount = 0;
+  if (!panel) {
+    warnings.push("Ingen solpanel i databasen.");
+  } else {
+    const panelWp = num(panel.specs.wp) ?? 1;
+    panelCount = Math.ceil(design.solar.requiredWp / panelWp);
+    add(panel, panelCount, `${panelCount} × ${panelWp} Wp ≈ ${panelCount * panelWp} Wp.`);
+  }
+
+  // --- MPPT (förenklad dimensionering i v1) ---
+  const mppt = byType(components, "mppt")[0];
+  if (!mppt) {
+    warnings.push("Ingen MPPT i databasen.");
+  } else if (panel && panelCount > 0) {
+    const panelVoc = num(panel.specs.vocV) ?? 0;
+    const panelImp = num(panel.specs.impA) ?? 0;
+    const mpptMaxV = num(mppt.specs.maxPvVoltageV) ?? Infinity;
+    const mpptMaxA = num(mppt.specs.maxOutputCurrentA) ?? Infinity;
+    const series = Math.min(panelCount, Math.max(1, Math.floor(mpptMaxV / Math.max(panelVoc, 1))));
+    const parallel = Math.ceil(panelCount / series);
+    const check = mpptCheck({ panelVoc, panelImp, series, parallel, mpptMaxV, mpptMaxA });
+    const quantity = check.currentOk ? 1 : Math.max(1, Math.ceil(check.arrayImp / mpptMaxA));
+    for (const w of check.warnings) warnings.push(`MPPT: ${w}`);
+    add(mppt, quantity, `Förenklad dimensionering (${series}S${parallel}P) — verifiera PV-fönstret.`);
+  } else {
+    add(mppt, 1);
+  }
+
+  // --- Växelriktare ---
+  const inverter = byType(components, "inverter")
+    .filter((c) => (num(c.specs.systemVoltageV) ?? vsys) === vsys)
+    .filter((c) => (num(c.specs.continuousW) ?? 0) >= design.inverter.requiredContinuousW)
+    .filter((c) => {
+      const surge = num(c.specs.surgeW);
+      return surge === undefined || surge >= design.inverter.requiredSurgeW;
+    })
+    .sort((a, b) => (num(a.specs.continuousW) ?? 0) - (num(b.specs.continuousW) ?? 0))[0];
+  if (!inverter) {
+    warnings.push(
+      `Ingen växelriktare i databasen klarar ${Math.round(design.inverter.requiredContinuousW)} W vid ${vsys} V.`,
+    );
+  } else {
+    add(inverter, 1, `≥ ${Math.round(design.inverter.requiredContinuousW)} W kontinuerligt.`);
+  }
+
+  // --- GX-enhet ---
+  const gx = byType(components, "gx")[0];
+  if (gx && design.distribution.recommendGx) add(gx, 1);
+
+  // --- SmartShunt ---
+  const shunt = byType(components, "accessory").find(
+    (c) => (num(c.specs.maxCurrentA) ?? 0) >= design.distribution.shuntRatingA,
+  );
+  if (shunt) add(shunt, 1, `${design.distribution.shuntRatingA} A.`);
+
+  // --- Busbar / Lynx (vid högre strömmar) ---
+  if (design.maxContinuousDcCurrentA > 100) {
+    const busbar = byType(components, "busbar")[0];
+    if (busbar) add(busbar, 1, `Busbar ≥ ${Math.round(design.distribution.busbarMinCurrentA)} A.`);
+  }
+
+  // --- Huvudkabel (metervara, fram + retur) ---
+  const area = design.mainCable.area.selectedAreaMm2;
+  const cable = byType(components, "cable")
+    .filter((c) => area !== null && (num(c.specs.areaMm2) ?? 0) >= area)
+    .sort((a, b) => (num(a.specs.areaMm2) ?? 0) - (num(b.specs.areaMm2) ?? 0))[0];
+  if (area === null) {
+    warnings.push("Kabelarea kunde inte bestämmas — se Steg 8.");
+  } else if (!cable) {
+    warnings.push(`Ingen kabel ≥ ${area} mm² i databasen.`);
+  } else {
+    const meters = Math.ceil(opts.mainCableLengthM * 2); // fram + retur
+    const cableArea = num(cable.specs.areaMm2);
+    const note =
+      `${meters} m (${opts.mainCableLengthM} m fram + retur), ${cableArea} mm²` +
+      (cableArea !== area ? ` (närmaste ≥ ${area} mm²).` : ".");
+    add(cable, meters, note);
+  }
+
+  // --- Säkring (huvudsäkring) ---
+  const fuseRating = design.mainCable.fuse.ratingA;
+  if (fuseRating !== null) {
+    const fuse = byType(components, "fuse")
+      .filter((c) => (num(c.specs.ratingA) ?? 0) >= fuseRating)
+      .sort((a, b) => (num(a.specs.ratingA) ?? 0) - (num(b.specs.ratingA) ?? 0))[0];
+    if (!fuse) {
+      warnings.push(`Ingen säkring ≥ ${fuseRating} A i databasen.`);
+    } else {
+      add(fuse, 1, `Huvudsäkring ${num(fuse.specs.ratingA)} A (behov ≥ ${fuseRating} A).`);
+    }
+  }
+
+  const totalSek = items.reduce((s, i) => s + i.lineTotalSek, 0);
+  const greenEligibleSek = items
+    .filter((i) => i.component.gronTeknikKategori === "sol" || i.component.gronTeknikKategori === "batteri")
+    .reduce((s, i) => s + i.lineTotalSek, 0);
+
+  return { items, totalSek, greenEligibleSek, warnings };
+}
