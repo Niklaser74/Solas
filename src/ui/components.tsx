@@ -1,12 +1,25 @@
-/** Delade UI-byggstenar för guiden. Svenska etiketter, enkel CSS. */
+/** Delade UI-byggstenar för guiden, enligt Dimensas brand-system.
+ *  Grotesk för ord, mono för mätbara tal. Svenska etiketter. */
 
 import type { ReactNode } from "react";
 import type { Bom } from "../bom/assembleBom.js";
 
+/** Svensk talformatering: decimalkomma, tunt mellanslag som tusentalsavgränsare. */
+export const nf = (n: number, decimals = 0): string =>
+  new Intl.NumberFormat("sv-SE", { minimumFractionDigits: 0, maximumFractionDigits: decimals }).format(n);
+
+export const sek = (n: number): string =>
+  new Intl.NumberFormat("sv-SE", { style: "currency", currency: "SEK", maximumFractionDigits: 0 }).format(n);
+
+/** Sektion med eyebrow (stegnummer i mono) + rubrik (grotesk). */
 export function Section({ title, children }: { title: string; children: ReactNode }) {
+  const m = /^(Steg\s+\d+\w*)\s*[—-]\s*(.+)$/.exec(title);
+  const eyebrow = m?.[1];
+  const heading = m?.[2] ?? title;
   return (
     <section className="section">
-      <h2>{title}</h2>
+      {eyebrow && <span className="eyebrow">{eyebrow}</span>}
+      <h2>{heading}</h2>
       {children}
     </section>
   );
@@ -22,16 +35,17 @@ export function NumberField(props: {
 }) {
   return (
     <label className="field">
-      <span>{props.label}</span>
+      <span className="field-label">{props.label}</span>
       <span className="field-input">
         <input
+          className="num"
           type="number"
           value={Number.isFinite(props.value) ? props.value : ""}
           step={props.step ?? 1}
           min={props.min}
           onChange={(e) => props.onChange(e.target.value === "" ? 0 : Number(e.target.value))}
         />
-        {props.suffix && <em>{props.suffix}</em>}
+        {props.suffix && <em className="unit-pill">{props.suffix}</em>}
       </span>
     </label>
   );
@@ -40,7 +54,7 @@ export function NumberField(props: {
 export function TextField(props: { label: string; value: string; onChange: (v: string) => void }) {
   return (
     <label className="field">
-      <span>{props.label}</span>
+      <span className="field-label">{props.label}</span>
       <span className="field-input">
         <input type="text" value={props.value} onChange={(e) => props.onChange(e.target.value)} />
       </span>
@@ -56,7 +70,7 @@ export function SelectField<T extends string | number>(props: {
 }) {
   return (
     <label className="field">
-      <span>{props.label}</span>
+      <span className="field-label">{props.label}</span>
       <span className="field-input">
         <select
           value={String(props.value)}
@@ -73,6 +87,34 @@ export function SelectField<T extends string | number>(props: {
         </select>
       </span>
     </label>
+  );
+}
+
+/** Segmenterad kontroll (12/24/48 V m.m.) — mono, aktiv = accent. */
+export function SegmentedControl<T extends string | number>(props: {
+  label?: string;
+  value: T;
+  options: Array<{ value: T; label: string }>;
+  onChange: (v: T) => void;
+}) {
+  return (
+    <div className="field">
+      {props.label && <span className="field-label">{props.label}</span>}
+      <div className="segmented" role="tablist">
+        {props.options.map((o) => (
+          <button
+            key={String(o.value)}
+            type="button"
+            role="tab"
+            aria-selected={o.value === props.value}
+            className={`seg${o.value === props.value ? " active" : ""}`}
+            onClick={() => props.onChange(o.value)}
+          >
+            {o.label}
+          </button>
+        ))}
+      </div>
+    </div>
   );
 }
 
@@ -96,7 +138,7 @@ export function ResultCard(props: {
         {props.rows.map((r) => (
           <div key={r.label} className="result-row">
             <dt>{r.label}</dt>
-            <dd>{r.value}</dd>
+            <dd className="num">{r.value}</dd>
           </div>
         ))}
       </dl>
@@ -109,59 +151,75 @@ export function ResultCard(props: {
 export function Warnings({ warnings }: { warnings?: string[] }) {
   if (!warnings || warnings.length === 0) return null;
   return (
-    <ul className="warnings">
+    <ul className="callout-warning">
       {warnings.map((w, i) => (
-        <li key={i}>⚠️ {w}</li>
+        <li key={i}>
+          <WarnIcon />
+          <span>{w}</span>
+        </li>
       ))}
     </ul>
   );
 }
 
-export function Disclaimer() {
+function WarnIcon() {
   return (
-    <p className="disclaimer">
-      Endast planeringshjälpmedel. Kabelarea, säkringar och komponentval måste verifieras mot gällande
-      standard (IEC/svensk praxis) och tillverkarnas datablad före installation. Dimensas är ett oberoende
-      verktyg för Victron-system och är inte kopplat till Victron Energy.
-    </p>
+    <svg className="warn-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <path
+        d="M12 4 2.5 20.5h19L12 4Z"
+        stroke="currentColor"
+        strokeWidth="1.75"
+        strokeLinejoin="round"
+      />
+      <path d="M12 10v4" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" />
+      <circle cx="12" cy="17.2" r="0.6" fill="currentColor" stroke="currentColor" strokeWidth="0.8" />
+    </svg>
   );
 }
 
-export const sek = (n: number): string =>
-  new Intl.NumberFormat("sv-SE", { style: "currency", currency: "SEK", maximumFractionDigits: 0 }).format(n);
+/** Obligatorisk disclaimer — ordagrann brand-text. */
+export function Disclaimer() {
+  return (
+    <div className="disclaimer">
+      <p>Dimensas är ett oberoende verktyg för Victron-baserade system. Inte anslutet till, eller godkänt av, Victron Energy.</p>
+      <p>Endast för planering — verifiera mot gällande standard och tillverkarens specifikation.</p>
+    </div>
+  );
+}
 
 export function BomTable({ bom }: { bom: Bom }) {
   return (
     <table className="bom-table">
       <thead>
         <tr>
-          <th>Komponent</th>
+          <th>Artikel</th>
           <th>Antal</th>
           <th>À-pris</th>
-          <th>Radsumma</th>
+          <th>Summa</th>
         </tr>
       </thead>
       <tbody>
         {bom.items.map((i) => (
           <tr key={i.component.id}>
             <td>
-              {i.component.modell}
+              <span className="bom-name">{i.component.modell}</span>
+              {i.component.victronArtikelnr && <span className="bom-art num">{i.component.victronArtikelnr}</span>}
               {i.note && <small className="bom-note">{i.note}</small>}
             </td>
-            <td>{i.quantity}</td>
-            <td>{sek(i.unitPriceSek)}</td>
-            <td>{sek(i.lineTotalSek)}</td>
+            <td className="num">{i.quantity}</td>
+            <td className="num">{sek(i.unitPriceSek)}</td>
+            <td className="num">{sek(i.lineTotalSek)}</td>
           </tr>
         ))}
       </tbody>
       <tfoot>
-        <tr>
+        <tr className="bom-total">
           <th colSpan={3}>Totalt</th>
-          <th>{sek(bom.totalSek)}</th>
+          <th className="num">{sek(bom.totalSek)}</th>
         </tr>
         <tr>
           <td colSpan={3}>Underlag grönt avdrag (sol + batteri)</td>
-          <td>{sek(bom.greenEligibleSek)}</td>
+          <td className="num">{sek(bom.greenEligibleSek)}</td>
         </tr>
       </tfoot>
     </table>

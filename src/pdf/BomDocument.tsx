@@ -6,30 +6,32 @@ import type { Bom } from "../bom/assembleBom.js";
 
 const sek = (n: number) =>
   new Intl.NumberFormat("sv-SE", { style: "currency", currency: "SEK", maximumFractionDigits: 0 }).format(n);
-const r0 = (n: number) => Math.round(n).toString();
-const r1 = (n: number) => (Math.round(n * 10) / 10).toString();
+const nfmt = (n: number, d = 0) =>
+  new Intl.NumberFormat("sv-SE", { minimumFractionDigits: 0, maximumFractionDigits: d }).format(n);
+const r0 = (n: number) => nfmt(n, 0);
+const r1 = (n: number) => nfmt(n, 1);
 
 const styles = StyleSheet.create({
-  page: { padding: 36, fontSize: 10, color: "#1a2b34", fontFamily: "Helvetica" },
-  title: { fontSize: 18, fontFamily: "Helvetica-Bold" },
-  meta: { color: "#5a6b73", marginBottom: 12 },
+  page: { padding: 36, fontSize: 10, color: "#15181B", fontFamily: "Helvetica" },
+  title: { fontSize: 18, fontFamily: "Helvetica-Bold", color: "#0C7A4D" },
+  meta: { color: "#8A8980", marginBottom: 12 },
   h2: { fontSize: 12, fontFamily: "Helvetica-Bold", marginTop: 14, marginBottom: 6 },
   sumRow: { flexDirection: "row", justifyContent: "space-between", paddingVertical: 1 },
-  row: { flexDirection: "row", borderBottomWidth: 0.5, borderBottomColor: "#d4dde1", paddingVertical: 3 },
-  headRow: { flexDirection: "row", borderBottomWidth: 1, borderBottomColor: "#1a2b34", paddingBottom: 3, fontFamily: "Helvetica-Bold" },
+  row: { flexDirection: "row", borderBottomWidth: 0.5, borderBottomColor: "#E0DED6", paddingVertical: 3 },
+  headRow: { flexDirection: "row", borderBottomWidth: 1, borderBottomColor: "#15181B", paddingBottom: 3, fontFamily: "Helvetica-Bold" },
   cName: { width: "52%" },
   cQty: { width: "12%", textAlign: "right" },
   cUnit: { width: "18%", textAlign: "right" },
   cSum: { width: "18%", textAlign: "right" },
   totalRow: { flexDirection: "row", marginTop: 6, fontFamily: "Helvetica-Bold" },
-  note: { fontSize: 7, color: "#7a8a91" },
-  disclaimer: { marginTop: 18, fontSize: 8, color: "#5a6b73" },
+  note: { fontSize: 7, color: "#8A8980" },
+  disclaimer: { marginTop: 18, fontSize: 8, color: "#8A8980" },
   watermark: {
     position: "absolute",
     top: 320,
     left: 90,
     fontSize: 80,
-    color: "#eef2f4",
+    color: "#E6E4DC",
     transform: "rotate(-35deg)",
     fontFamily: "Helvetica-Bold",
   },
@@ -110,9 +112,8 @@ export function BomDocument({ namn, typ, design, bom, watermark = true, date = n
         </View>
 
         <Text style={styles.disclaimer}>
-          Endast planeringshjälpmedel. Kabelarea, säkringar och komponentval måste verifieras mot gällande standard
-          (IEC/svensk praxis) och tillverkarnas datablad före installation. Dimensas är ett oberoende verktyg för
-          Victron-system och är inte kopplat till Victron Energy.
+          Dimensas är ett oberoende verktyg för Victron-baserade system. Inte anslutet till, eller godkänt av, Victron
+          Energy. Endast för planering — verifiera mot gällande standard och tillverkarens specifikation.
         </Text>
       </Page>
     </Document>
