@@ -74,12 +74,31 @@ result.mainCable.area.selectedAreaMm2; // vald kabelarea (mm²)
 result.mainCable.fuse.ratingA;      // säkring (A)
 ```
 
+## Deploy (Cloudflare Pages)
+
+Appen hostas på **dimensas.se** via Cloudflare Pages (statisk Vite-SPA).
+
+- **Build-kommando:** `npm run build`
+- **Output-katalog:** `dist`
+- **Node-version:** 22 (`.nvmrc`)
+- `public/_redirects` ger SPA-fallback, `public/_headers` sätter säkerhets-
+  och cache-headers. Vite kopierar `public/` till `dist/` vid bygget.
+
+Anslut repot i Cloudflare Pages-dashboarden (Git-integration) så byggs och
+deployas `main`/PR-previews automatiskt — inga hemligheter i repot.
+
+### Stackbeslut (brief §7)
+
+Backend/data är låst till **Cloudflare**: Pages nu, och **Pages Functions +
+D1/KV** för konton och sparade projekt i Fas 4 (ersätter dagens `localStorage`).
+EU-dataresidens via Cloudflares EU-regioner.
+
 ## Roadmap (kommande faser)
 
-- **Fas 3:** Guide-UI (PWA/React) + BOM/PDF-export, off-grid stuga/husbil.
+- **Fas 3 ✅:** Guide-UI (React) + BOM/PDF-export, off-grid stuga/husbil.
 - **Fas 3b:** Fysisk layout-planerare (Steg 7) — 2D zon-canvas, kabeldragning
   → längder matar Steg 8.
-- **Fas 4:** Konton + Stripe.
+- **Fas 4:** Konton + Stripe + serverpersistens (Cloudflare Pages Functions + D1).
 - **Fas 5:** Installatörsläge: white-label, grönt avdrag-netto, kundbibliotek.
 
 Se projektbriefen för fullständig vision, affärsmodell och risker.
