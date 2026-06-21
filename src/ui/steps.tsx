@@ -8,6 +8,7 @@ import { TYPICAL_DOD } from "../engine/battery.js";
 import { applianceTemplates, sunRegions } from "../data/templates.js";
 import type { TemplateKey } from "../data/templates.js";
 import { SEED_COMPONENTS } from "../data/seed.js";
+import { CUSTOM_BATTERY_ID, CUSTOM_PANEL_ID } from "../data/customComponents.js";
 import { useProject, useProjectDispatch, useDesign } from "../state/projectStore.js";
 import { LayoutCanvas } from "../layout/LayoutCanvas.js";
 import {
@@ -39,6 +40,7 @@ const batteryModelOptions = [
   ...SEED_COMPONENTS.filter((c) => c.typ === "battery")
     .sort((a, b) => specNum(a, "capacityAh") - specNum(b, "capacityAh"))
     .map((c) => ({ value: c.id, label: c.modell })),
+  { value: CUSTOM_BATTERY_ID, label: "Egen (ange parametrar)" },
 ];
 
 /** Panelmodeller, sorterade på effekt, för modellväljaren. */
@@ -47,6 +49,7 @@ const panelModelOptions = [
   ...SEED_COMPONENTS.filter((c) => c.typ === "panel")
     .sort((a, b) => specNum(a, "wp") - specNum(b, "wp"))
     .map((c) => ({ value: c.id, label: c.modell })),
+  { value: CUSTOM_PANEL_ID, label: "Egen (ange parametrar)" },
 ];
 
 /* ------------------------------------------------------------------ Steg 1 */
@@ -212,6 +215,16 @@ export function BatteryStep() {
       dispatch({ type: "patchBattery", patch: { selectedComponentId: null } });
       return;
     }
+    if (id === CUSTOM_BATTERY_ID) {
+      dispatch({
+        type: "patchBattery",
+        patch: {
+          selectedComponentId: id,
+          customBattery: state.battery.customBattery ?? { nominalVoltageV: 12, capacityAh: 100, prisSek: 0 },
+        },
+      });
+      return;
+    }
     const c = SEED_COMPONENTS.find((x) => x.id === id);
     const chem = c?.specs.chemistry;
     const dod = c?.specs.recommendedDod;
@@ -225,6 +238,13 @@ export function BatteryStep() {
     });
   };
 
+  const custom = state.battery.customBattery;
+  const patchCustomBattery = (patch: Partial<NonNullable<typeof custom>>) =>
+    dispatch({
+      type: "patchBattery",
+      patch: { customBattery: { ...(custom ?? { nominalVoltageV: 12, capacityAh: 100, prisSek: 0 }), ...patch } },
+    });
+
   const battLine = bom?.items.find((i) => i.component.typ === "battery");
 
   return (
@@ -236,6 +256,32 @@ export function BatteryStep() {
           options={batteryModelOptions}
           onChange={setBatteryModel}
         />
+        {state.battery.selectedComponentId === CUSTOM_BATTERY_ID && (
+          <>
+            <NumberField
+              label="Spänning (V)"
+              value={custom?.nominalVoltageV ?? 12}
+              step={0.1}
+              min={0.1}
+              suffix="V"
+              onChange={(nominalVoltageV) => patchCustomBattery({ nominalVoltageV })}
+            />
+            <NumberField
+              label="Kapacitet (Ah)"
+              value={custom?.capacityAh ?? 100}
+              min={1}
+              suffix="Ah"
+              onChange={(capacityAh) => patchCustomBattery({ capacityAh })}
+            />
+            <NumberField
+              label="Pris (kr)"
+              value={custom?.prisSek ?? 0}
+              min={0}
+              suffix="kr"
+              onChange={(prisSek) => patchCustomBattery({ prisSek })}
+            />
+          </>
+        )}
         <SelectField<BatteryChemistry>
           label="Batterikemi (för auto)"
           value={state.battery.chemistry}
@@ -319,8 +365,26 @@ export function SolarStep() {
     });
   };
 
-  const setPanelModel = (id: string) =>
+  const setPanelModel = (id: string) => {
+    if (id === CUSTOM_PANEL_ID) {
+      dispatch({
+        type: "patchSolar",
+        patch: {
+          panelComponentId: id,
+          customPanel: state.solar.customPanel ?? { wp: 175, vocV: 22, impA: 8, prisSek: 0 },
+        },
+      });
+      return;
+    }
     dispatch({ type: "patchSolar", patch: { panelComponentId: id === AUTO ? null : id } });
+  };
+
+  const customPanel = state.solar.customPanel;
+  const patchCustomPanel = (patch: Partial<NonNullable<typeof customPanel>>) =>
+    dispatch({
+      type: "patchSolar",
+      patch: { customPanel: { ...(customPanel ?? { wp: 175, vocV: 22, impA: 8, prisSek: 0 }), ...patch } },
+    });
 
   const panelLine = bom?.items.find((i) => i.component.typ === "panel");
 
@@ -333,6 +397,40 @@ export function SolarStep() {
           options={panelModelOptions}
           onChange={setPanelModel}
         />
+        {state.solar.panelComponentId === CUSTOM_PANEL_ID && (
+          <>
+            <NumberField
+              label="Effekt (W)"
+              value={customPanel?.wp ?? 175}
+              min={1}
+              suffix="W"
+              onChange={(wp) => patchCustomPanel({ wp })}
+            />
+            <NumberField
+              label="Spänning Voc (V)"
+              value={customPanel?.vocV ?? 22}
+              step={0.1}
+              min={0.1}
+              suffix="V"
+              onChange={(vocV) => patchCustomPanel({ vocV })}
+            />
+            <NumberField
+              label="Ström (A)"
+              value={customPanel?.impA ?? 8}
+              step={0.1}
+              min={0.1}
+              suffix="A"
+              onChange={(impA) => patchCustomPanel({ impA })}
+            />
+            <NumberField
+              label="Pris (kr)"
+              value={customPanel?.prisSek ?? 0}
+              min={0}
+              suffix="kr"
+              onChange={(prisSek) => patchCustomPanel({ prisSek })}
+            />
+          </>
+        )}
         <SelectField
           label="Region"
           value={state.solar.regionKey}

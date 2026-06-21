@@ -28,6 +28,7 @@ export function defaultState(): ProjectState {
       efficiency: 0.95,
       selectedComponentId: null,
       quantityOverride: null,
+      customBattery: null,
     },
     solar: {
       regionKey: "syd",
@@ -36,6 +37,7 @@ export function defaultState(): ProjectState {
       snowFactor: region.defaultSnowFactor,
       panelComponentId: null,
       panelQuantityOverride: null,
+      customPanel: null,
     },
     inverter: { hasInductiveLoads: true },
     cable: { mainCableLengthM: 2.5, maxVoltDropPct: 3 },
@@ -52,11 +54,13 @@ function normalize(state: ProjectState): ProjectState {
       ...state.battery,
       selectedComponentId: state.battery?.selectedComponentId ?? null,
       quantityOverride: state.battery?.quantityOverride ?? null,
+      customBattery: state.battery?.customBattery ?? null,
     },
     solar: {
       ...state.solar,
       panelComponentId: state.solar?.panelComponentId ?? null,
       panelQuantityOverride: state.solar?.panelQuantityOverride ?? null,
+      customPanel: state.solar?.customPanel ?? null,
     },
   };
 }

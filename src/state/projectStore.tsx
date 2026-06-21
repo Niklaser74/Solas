@@ -8,6 +8,14 @@ import { designSystem } from "../engine/index.js";
 import type { DesignSystemInput, DesignSystemResult } from "../engine/index.js";
 import { assembleBom } from "../bom/assembleBom.js";
 import type { Bom } from "../bom/assembleBom.js";
+import { SEED_COMPONENTS } from "../data/seed.js";
+import type { Component } from "../data/types.js";
+import {
+  CUSTOM_BATTERY_ID,
+  CUSTOM_PANEL_ID,
+  buildCustomBattery,
+  buildCustomPanel,
+} from "../data/customComponents.js";
 
 export type ProjectAction =
   | { type: "patch"; patch: Partial<ProjectState> }
@@ -99,14 +107,26 @@ export function useDesign(): DesignOutput {
   return useMemo(() => {
     try {
       const design = designSystem(toDesignInput(state));
-      const bom = assembleBom(design, {
-        batteryChemistry: state.battery.chemistry,
-        mainCableLengthM: state.cable.mainCableLengthM,
-        batteryComponentId: state.battery.selectedComponentId ?? undefined,
-        batteryQuantity: state.battery.quantityOverride ?? undefined,
-        panelComponentId: state.solar.panelComponentId ?? undefined,
-        panelQuantity: state.solar.panelQuantityOverride ?? undefined,
-      });
+      const customs: Component[] = [];
+      if (state.battery.selectedComponentId === CUSTOM_BATTERY_ID && state.battery.customBattery) {
+        customs.push(buildCustomBattery(state.battery.customBattery, state.battery.chemistry, state.battery.dod));
+      }
+      if (state.solar.panelComponentId === CUSTOM_PANEL_ID && state.solar.customPanel) {
+        customs.push(buildCustomPanel(state.solar.customPanel));
+      }
+      const components = customs.length ? [...SEED_COMPONENTS, ...customs] : undefined;
+      const bom = assembleBom(
+        design,
+        {
+          batteryChemistry: state.battery.chemistry,
+          mainCableLengthM: state.cable.mainCableLengthM,
+          batteryComponentId: state.battery.selectedComponentId ?? undefined,
+          batteryQuantity: state.battery.quantityOverride ?? undefined,
+          panelComponentId: state.solar.panelComponentId ?? undefined,
+          panelQuantity: state.solar.panelQuantityOverride ?? undefined,
+        },
+        components,
+      );
       return { design, bom, error: null };
     } catch (e) {
       return { design: null, bom: null, error: e instanceof Error ? e.message : String(e) };
