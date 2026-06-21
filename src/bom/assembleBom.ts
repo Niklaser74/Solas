@@ -61,6 +61,16 @@ function byType(components: readonly Component[], typ: Component["typ"]): Compon
   return components.filter((c) => c.typ === typ);
 }
 
+/**
+ * Fördelar VE.Direct-enheter på GX:ens portar. Enheter utöver antalet
+ * VE.Direct-portar ansluts via VE.Direct-till-USB.
+ */
+export function veDirectCablePlan(deviceCount: number, ports: number): { direct: number; usb: number } {
+  const direct = Math.max(0, Math.min(deviceCount, ports));
+  const usb = Math.max(0, deviceCount - ports);
+  return { direct, usb };
+}
+
 /** Sätter ihop en BOM från ett dimensioneringsresultat. */
 export function assembleBom(
   design: DesignSystemResult,
@@ -139,6 +149,7 @@ export function assembleBom(
 
   // --- MPPT (förenklad dimensionering i v1) ---
   const mppt = byType(components, "mppt")[0];
+  let mpptQty = 0;
   if (!mppt) {
     warnings.push("Ingen MPPT i databasen.");
   } else if (panel && panelCount > 0) {
@@ -149,10 +160,11 @@ export function assembleBom(
     const series = Math.min(panelCount, Math.max(1, Math.floor(mpptMaxV / Math.max(panelVoc, 1))));
     const parallel = Math.ceil(panelCount / series);
     const check = mpptCheck({ panelVoc, panelImp, series, parallel, mpptMaxV, mpptMaxA });
-    const quantity = check.currentOk ? 1 : Math.max(1, Math.ceil(check.arrayImp / mpptMaxA));
+    mpptQty = check.currentOk ? 1 : Math.max(1, Math.ceil(check.arrayImp / mpptMaxA));
     for (const w of check.warnings) warnings.push(`MPPT: ${w}`);
-    add(mppt, quantity, `Förenklad dimensionering (${series}S${parallel}P) — verifiera PV-fönstret.`);
+    add(mppt, mpptQty, `Förenklad dimensionering (${series}S${parallel}P) — verifiera PV-fönstret.`);
   } else {
+    mpptQty = 1;
     add(mppt, 1);
   }
 
@@ -181,12 +193,30 @@ export function assembleBom(
   const shunt = byType(components, "accessory").find(
     (c) => (num(c.specs.maxCurrentA) ?? 0) >= design.distribution.shuntRatingA,
   );
+  const shuntAdded = Boolean(shunt);
   if (shunt) add(shunt, 1, `${design.distribution.shuntRatingA} A.`);
 
   // --- Busbar / Lynx (vid högre strömmar) ---
   if (design.maxContinuousDcCurrentA > 100) {
     const busbar = byType(components, "busbar")[0];
     if (busbar) add(busbar, 1, `Busbar ≥ ${Math.round(design.distribution.busbarMinCurrentA)} A.`);
+  }
+
+  // --- VE.Direct-kommunikation till GX ---
+  if (gx && design.distribution.recommendGx) {
+    const veDevices = mpptQty + (shuntAdded ? 1 : 0);
+    const ports = num(gx.specs.veDirectPorts) ?? 3;
+    const { direct, usb } = veDirectCablePlan(veDevices, ports);
+    if (direct > 0) {
+      const veCable = components.find((c) => c.id === "acc-vedirect-18");
+      if (veCable) add(veCable, direct, `${direct} VE.Direct-enhet(er) till GX.`);
+      else warnings.push("Ingen VE.Direct-kabel i databasen.");
+    }
+    if (usb > 0) {
+      const veUsb = components.find((c) => c.id === "acc-vedirect-usb");
+      if (veUsb) add(veUsb, usb, `${usb} enhet(er) utöver GX:ns ${ports} VE.Direct-portar — ansluts via USB.`);
+      else warnings.push("Ingen VE.Direct-USB-kabel i databasen.");
+    }
   }
 
   // --- Huvudkabel (metervara, fram + retur) ---
