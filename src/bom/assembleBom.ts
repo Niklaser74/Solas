@@ -219,6 +219,13 @@ export function assembleBom(
     }
   }
 
+  // --- VE.Bus-kommunikation (MultiPlus → GX) ---
+  if (inverter && inverter.specs.comms === "VE.Bus" && gx && design.distribution.recommendGx) {
+    const rj45 = components.find((c) => c.id === "acc-rj45-utp-5m");
+    if (rj45) add(rj45, 1, "VE.Bus → GX (RJ45 UTP).");
+    else warnings.push("Ingen RJ45 UTP-kabel i databasen.");
+  }
+
   // --- Huvudkabel (metervara, fram + retur) ---
   const area = design.mainCable.area.selectedAreaMm2;
   const cable = byType(components, "cable")
