@@ -1,6 +1,13 @@
 import { describe, it, expect } from "vitest";
 import { designSystem, type DesignSystemInput } from "../../engine/index.js";
 import { assembleBom } from "../assembleBom.js";
+import { SEED_COMPONENTS } from "../../data/seed.js";
+import {
+  buildCustomBattery,
+  buildCustomPanel,
+  CUSTOM_BATTERY_ID,
+  CUSTOM_PANEL_ID,
+} from "../../data/customComponents.js";
 
 const stuga: DesignSystemInput = {
   appliances: [
@@ -146,6 +153,38 @@ describe("assembleBom — manuellt val", () => {
     const panel = bom.items.find((i) => i.component.typ === "panel");
     expect(panel?.quantity).toBe(2);
     expect(bom.warnings.some((w) => /Solcellseffekten/.test(w))).toBe(true);
+  });
+});
+
+describe("assembleBom — egna parametrar", () => {
+  const design = designSystem(stuga); // AGM, requiredAh ≈ 845, requiredWp ≈ 1835
+
+  it("använder eget batteri med angivna parametrar och pris", () => {
+    const custom = buildCustomBattery({ nominalVoltageV: 12, capacityAh: 250, prisSek: 9000 }, "LiFePO4", 0.8);
+    const bom = assembleBom(
+      design,
+      { batteryChemistry: "AGM", mainCableLengthM: 2.5, batteryComponentId: CUSTOM_BATTERY_ID },
+      [...SEED_COMPONENTS, custom],
+    );
+    const batt = bom.items.find((i) => i.component.typ === "battery");
+    expect(batt?.component.id).toBe(CUSTOM_BATTERY_ID);
+    // 845 Ah / 250 Ah → 4 st (12 V, serie 1), 4 × 9000 kr
+    expect(batt?.quantity).toBe(4);
+    expect(batt?.lineTotalSek).toBe(36000);
+  });
+
+  it("använder egen panel med angiven effekt och pris", () => {
+    const custom = buildCustomPanel({ wp: 400, vocV: 45, impA: 10, prisSek: 2500 });
+    const bom = assembleBom(
+      design,
+      { batteryChemistry: "AGM", mainCableLengthM: 2.5, panelComponentId: CUSTOM_PANEL_ID },
+      [...SEED_COMPONENTS, custom],
+    );
+    const panel = bom.items.find((i) => i.component.typ === "panel");
+    expect(panel?.component.id).toBe(CUSTOM_PANEL_ID);
+    // 1835 Wp / 400 Wp → 5 st, 5 × 2500 kr
+    expect(panel?.quantity).toBe(5);
+    expect(panel?.lineTotalSek).toBe(12500);
   });
 });
 

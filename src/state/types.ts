@@ -21,6 +21,8 @@ export interface ProjectState {
     selectedComponentId: string | null;
     /** Manuellt antal batterier, eller null för auto-beräknat. */
     quantityOverride: number | null;
+    /** Egna batteriparametrar (när "Egen" valts), eller null. */
+    customBattery: { nominalVoltageV: number; capacityAh: number; prisSek: number } | null;
   };
   solar: {
     regionKey: string;
@@ -31,6 +33,8 @@ export interface ProjectState {
     panelComponentId: string | null;
     /** Manuellt antal paneler, eller null för auto-beräknat. */
     panelQuantityOverride: number | null;
+    /** Egna panelparametrar (när "Egen" valts), eller null. */
+    customPanel: { vocV: number; impA: number; wp: number; prisSek: number } | null;
   };
   inverter: {
     hasInductiveLoads: boolean;
