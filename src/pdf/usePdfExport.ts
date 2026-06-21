@@ -3,12 +3,16 @@
 import { useState } from "react";
 import type { DesignSystemResult } from "../engine/index.js";
 import type { Bom } from "../bom/assembleBom.js";
+import type { LayoutState } from "../state/types.js";
 
 export interface ExportInput {
   namn: string;
   typ: string;
   design: DesignSystemResult;
   bom: Bom;
+  layout?: LayoutState;
+  includeWiring?: boolean;
+  includeMounting?: boolean;
   watermark?: boolean;
 }
 
@@ -33,6 +37,9 @@ export function usePdfExport() {
           typ: input.typ,
           design: input.design,
           bom: input.bom,
+          layout: input.layout,
+          includeWiring: input.includeWiring,
+          includeMounting: input.includeMounting,
           watermark: input.watermark ?? true,
         }),
       ).toBlob();

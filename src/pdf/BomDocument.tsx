@@ -3,6 +3,9 @@
 import { Document, Page, Text, View, StyleSheet } from "@react-pdf/renderer";
 import type { DesignSystemResult } from "../engine/index.js";
 import type { Bom } from "../bom/assembleBom.js";
+import type { LayoutState } from "../state/types.js";
+import { WiringDiagram } from "./WiringDiagram.js";
+import { MountingDiagram } from "./MountingDiagram.js";
 
 const sek = (n: number) =>
   new Intl.NumberFormat("sv-SE", { style: "currency", currency: "SEK", maximumFractionDigits: 0 }).format(n);
@@ -42,12 +45,28 @@ export interface BomDocumentProps {
   typ: string;
   design: DesignSystemResult;
   bom: Bom;
+  /** Fysisk layout (Steg 7) — krävs för montageschemat. */
+  layout?: LayoutState;
+  /** Lägg till kopplingsschema-sida. */
+  includeWiring?: boolean;
+  /** Lägg till montageschema-sida. */
+  includeMounting?: boolean;
   /** Visa vattenstämpel (gratisnivå). */
   watermark?: boolean;
   date?: Date;
 }
 
-export function BomDocument({ namn, typ, design, bom, watermark = true, date = new Date() }: BomDocumentProps) {
+export function BomDocument({
+  namn,
+  typ,
+  design,
+  bom,
+  layout,
+  includeWiring = false,
+  includeMounting = false,
+  watermark = true,
+  date = new Date(),
+}: BomDocumentProps) {
   const summary: Array<[string, string]> = [
     ["Daglig energi", `${r0(design.load.dailyEnergyWh)} Wh/dygn`],
     ["Topplast / surge", `${r0(design.load.peakLoadW)} / ${r0(design.load.surgeW)} W`],
@@ -116,6 +135,9 @@ export function BomDocument({ namn, typ, design, bom, watermark = true, date = n
           Energy. Endast för planering — verifiera mot gällande standard och tillverkarens specifikation.
         </Text>
       </Page>
+
+      {includeWiring && <WiringDiagram design={design} bom={bom} />}
+      {includeMounting && <MountingDiagram layout={layout ?? { zone: { width: 1000, height: 600 }, placements: [], runs: [] }} />}
     </Document>
   );
 }
