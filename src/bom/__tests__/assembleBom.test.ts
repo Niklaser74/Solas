@@ -210,6 +210,24 @@ describe("assembleBom — VE.Direct-kablage", () => {
   });
 });
 
+describe("assembleBom — VE.Bus-kablage (MultiPlus → GX)", () => {
+  it("lägger till en RJ45 UTP-kabel när MultiPlus (VE.Bus) valts", () => {
+    const bom = assembleBom(designSystem(villa), { batteryChemistry: "LiFePO4", mainCableLengthM: 2 });
+    const inv = bom.items.find((i) => i.component.typ === "inverter");
+    expect(inv?.component.id).toBe("inverter-multiplus-24-3000-70");
+    const rj45 = bom.items.find((i) => i.component.id === "acc-rj45-utp-5m");
+    expect(rj45?.quantity).toBe(1);
+  });
+
+  it("lägger inte till RJ45 UTP-kabel när Phoenix (utan VE.Bus) valts", () => {
+    const bom = assembleBom(designSystem(stuga), { batteryChemistry: "AGM", mainCableLengthM: 2.5 });
+    expect(bom.items.find((i) => i.component.typ === "inverter")?.component.id).toBe(
+      "inverter-phoenix-12-1200",
+    );
+    expect(bom.items.some((i) => i.component.id === "acc-rj45-utp-5m")).toBe(false);
+  });
+});
+
 describe("assembleBom — Liten villa (24 V)", () => {
   const bom = assembleBom(designSystem(villa), { batteryChemistry: "LiFePO4", mainCableLengthM: 2 });
 
