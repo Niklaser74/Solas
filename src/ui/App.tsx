@@ -34,9 +34,18 @@ export function App() {
   const { design, bom } = useDesign();
   const { exportPdf, exporting } = usePdfExport();
 
-  const onExport = () => {
+  const onExport = (opts?: { wiring?: boolean; mounting?: boolean }) => {
     if (design && bom) {
-      void exportPdf({ namn: project.namn, typ: project.typ, design, bom, watermark: true });
+      void exportPdf({
+        namn: project.namn,
+        typ: project.typ,
+        design,
+        bom,
+        layout: project.layout,
+        includeWiring: opts?.wiring ?? false,
+        includeMounting: opts?.mounting ?? false,
+        watermark: true,
+      });
     }
   };
 

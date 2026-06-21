@@ -1,6 +1,7 @@
 /** Guidens steg (1–8 + BOM). Varje steg läser/skriver state och visar motorns
  *  resultat med motivering och varningar. */
 
+import { useState } from "react";
 import type { Appliance } from "../engine/load.js";
 import type { SystemVoltage } from "../engine/units.js";
 import type { BatteryChemistry } from "../engine/battery.js";
@@ -604,8 +605,16 @@ export function CableStep() {
 
 /* --------------------------------------------------------------------- BOM */
 
-export function BomStep({ onExport, exporting }: { onExport: () => void; exporting: boolean }) {
+export function BomStep({
+  onExport,
+  exporting,
+}: {
+  onExport: (opts: { wiring: boolean; mounting: boolean }) => void;
+  exporting: boolean;
+}) {
   const { bom } = useDesign();
+  const [wiring, setWiring] = useState(false);
+  const [mounting, setMounting] = useState(false);
   return (
     <Section title="Steg 9 — BOM & offert">
       {bom && (
@@ -616,7 +625,9 @@ export function BomStep({ onExport, exporting }: { onExport: () => void; exporti
             Grönt avdrag-netto beräknas i installatörsläget (Fas 5). Här visas {sek(bom.greenEligibleSek)} som
             avdragsunderlag (sol + batteri).
           </p>
-          <button className="primary" onClick={onExport} disabled={exporting}>
+          <CheckboxField label="Inkludera kopplingsschema i PDF:en" checked={wiring} onChange={setWiring} />
+          <CheckboxField label="Inkludera montageschema (layout) i PDF:en" checked={mounting} onChange={setMounting} />
+          <button className="primary" onClick={() => onExport({ wiring, mounting })} disabled={exporting}>
             {exporting ? "Genererar PDF…" : "Exportera PDF"}
           </button>
           <Disclaimer />
