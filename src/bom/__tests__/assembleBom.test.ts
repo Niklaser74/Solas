@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { designSystem, type DesignSystemInput } from "../../engine/index.js";
-import { assembleBom } from "../assembleBom.js";
+import { assembleBom, veDirectCablePlan } from "../assembleBom.js";
 import { SEED_COMPONENTS } from "../../data/seed.js";
 import {
   buildCustomBattery,
@@ -79,10 +79,10 @@ describe("assembleBom — Stuga AGM (handräknat facit)", () => {
     expect(cable?.quantity).toBe(5); // ceil(2.5 × 2)
   });
 
-  it("har 8 rader, korrekt total och grönt underlag", () => {
-    expect(bom.items).toHaveLength(8);
-    expect(bom.totalSek).toBe(44689);
-    expect(bom.greenEligibleSek).toBe(36205); // batteri + paneler + MPPT
+  it("har 9 rader, korrekt total och grönt underlag", () => {
+    expect(bom.items).toHaveLength(9); // + VE.Direct-kabel
+    expect(bom.totalSek).toBe(44927); // 44689 + 2 × 119 (VE.Direct)
+    expect(bom.greenEligibleSek).toBe(36205); // batteri + paneler + MPPT (VE.Direct = ingen)
   });
 });
 
@@ -185,6 +185,28 @@ describe("assembleBom — egna parametrar", () => {
     // 1835 Wp / 400 Wp → 5 st, 5 × 2500 kr
     expect(panel?.quantity).toBe(5);
     expect(panel?.lineTotalSek).toBe(12500);
+  });
+});
+
+describe("veDirectCablePlan", () => {
+  it("fördelar enheter på portar och USB", () => {
+    expect(veDirectCablePlan(2, 3)).toEqual({ direct: 2, usb: 0 });
+    expect(veDirectCablePlan(3, 3)).toEqual({ direct: 3, usb: 0 });
+    expect(veDirectCablePlan(5, 3)).toEqual({ direct: 3, usb: 2 });
+    expect(veDirectCablePlan(0, 3)).toEqual({ direct: 0, usb: 0 });
+  });
+});
+
+describe("assembleBom — VE.Direct-kablage", () => {
+  const bom = assembleBom(designSystem(stuga), { batteryChemistry: "AGM", mainCableLengthM: 2.5 });
+
+  it("lägger till en VE.Direct-kabel per VE.Direct-enhet (MPPT + shunt)", () => {
+    const ve = bom.items.find((i) => i.component.id === "acc-vedirect-18");
+    expect(ve?.quantity).toBe(2);
+  });
+
+  it("lägger inte till VE.Direct-USB när enheterna ryms på portarna", () => {
+    expect(bom.items.some((i) => i.component.id === "acc-vedirect-usb")).toBe(false);
   });
 });
 
