@@ -38,10 +38,20 @@ export interface ProjectState {
   };
   inverter: {
     hasInductiveLoads: boolean;
+    /** Vald växelriktarmodell (komponent-id), eller null för auto/minsta passande. */
+    selectedComponentId: string | null;
+  };
+  distribution: {
+    /** Vald shuntmodell (komponent-id), eller null för auto/minsta passande. */
+    shuntComponentId: string | null;
   };
   cable: {
     mainCableLengthM: number;
     maxVoltDropPct: number;
+    /** Vald huvudkabelmodell (komponent-id), eller null för auto. */
+    cableComponentId: string | null;
+    /** Vald säkringsmodell (komponent-id), eller null för auto. */
+    fuseComponentId: string | null;
   };
   layout: LayoutState;
 }

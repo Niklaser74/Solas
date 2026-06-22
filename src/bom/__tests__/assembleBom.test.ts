@@ -193,6 +193,44 @@ describe("assembleBom — egna parametrar", () => {
   });
 });
 
+describe("assembleBom — byt komponent (manuella val utöver batteri/panel)", () => {
+  const design = designSystem(stuga); // 12 V, väljer Phoenix 1200 / minsta kabel & säkring
+  const base = { batteryChemistry: "AGM" as const, mainCableLengthM: 2.5 };
+
+  it("använder vald växelriktarmodell istället för minsta passande", () => {
+    const bom = assembleBom(design, { ...base, inverterComponentId: "inverter-multiplus-12-1600-70" });
+    expect(bom.items.find((i) => i.component.typ === "inverter")?.component.id).toBe(
+      "inverter-multiplus-12-1600-70",
+    );
+  });
+
+  it("använder vald shuntmodell istället för minsta passande", () => {
+    const bom = assembleBom(design, { ...base, shuntComponentId: "shunt-smartshunt-500" });
+    const shunt = bom.items.find((i) => i.component.id.startsWith("shunt-"));
+    expect(shunt?.component.id).toBe("shunt-smartshunt-500");
+  });
+
+  it("använder vald kabel- och säkringsmodell", () => {
+    const bom = assembleBom(design, {
+      ...base,
+      cableComponentId: "cable-70mm2",
+      fuseComponentId: "fuse-mega-200",
+    });
+    expect(bom.items.find((i) => i.component.typ === "cable")?.component.id).toBe("cable-70mm2");
+    expect(bom.items.find((i) => i.component.typ === "fuse")?.component.id).toBe("fuse-mega-200");
+  });
+
+  it("varnar när vald säkring är underdimensionerad", () => {
+    const villaDesign = designSystem(villa); // högre ström → behöver > 100 A säkring
+    const bom = assembleBom(villaDesign, {
+      batteryChemistry: "LiFePO4",
+      mainCableLengthM: 2,
+      fuseComponentId: "fuse-mega-100",
+    });
+    expect(bom.warnings.some((w) => /Vald säkring/.test(w))).toBe(true);
+  });
+});
+
 describe("veDirectCablePlan", () => {
   it("fördelar enheter på portar och USB", () => {
     expect(veDirectCablePlan(2, 3)).toEqual({ direct: 2, usb: 0 });

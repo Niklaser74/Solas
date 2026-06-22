@@ -15,6 +15,7 @@ import { mpptCheck } from "../engine/index.js";
 import type { BatteryChemistry } from "../engine/battery.js";
 import type { Component } from "../data/types.js";
 import { SEED_COMPONENTS } from "../data/seed.js";
+import { eligibleInverters, eligibleShunts, eligibleCables, eligibleFuses, num } from "./selection.js";
 
 /** En rad i BOM:en. */
 export interface BomLineItem {
@@ -40,6 +41,14 @@ export interface BomOptions {
   panelComponentId?: string;
   /** Manuellt antal paneler (> 0). Annars auto-beräknat. */
   panelQuantity?: number;
+  /** Vald växelriktarmodell (komponent-id). Annars minsta passande. */
+  inverterComponentId?: string;
+  /** Vald shuntmodell (komponent-id). Annars minsta passande. */
+  shuntComponentId?: string;
+  /** Vald huvudkabelmodell (komponent-id). Annars minsta passande area. */
+  cableComponentId?: string;
+  /** Vald säkringsmodell (komponent-id). Annars minsta passande märkström. */
+  fuseComponentId?: string;
 }
 
 /** Resultat av BOM-monteringen. */
@@ -51,10 +60,6 @@ export interface Bom {
   greenEligibleSek: number;
   /** Varningar på svenska (saknade komponenter, antaganden). */
   warnings: string[];
-}
-
-function num(v: unknown): number | undefined {
-  return typeof v === "number" ? v : undefined;
 }
 
 function byType(components: readonly Component[], typ: Component["typ"]): Component[] {
@@ -168,33 +173,44 @@ export function assembleBom(
     add(mppt, 1);
   }
 
-  // --- Växelriktare ---
-  const inverter = byType(components, "inverter")
-    .filter((c) => (num(c.specs.systemVoltageV) ?? vsys) === vsys)
-    .filter((c) => (num(c.specs.continuousW) ?? 0) >= design.inverter.requiredContinuousW)
-    .filter((c) => {
-      const surge = num(c.specs.surgeW);
-      return surge === undefined || surge >= design.inverter.requiredSurgeW;
-    })
-    .sort((a, b) => (num(a.specs.continuousW) ?? 0) - (num(b.specs.continuousW) ?? 0))[0];
+  // --- Växelriktare (vald modell eller minsta passande) ---
+  const inverter = opts.inverterComponentId
+    ? components.find((c) => c.typ === "inverter" && c.id === opts.inverterComponentId)
+    : eligibleInverters(design, components)[0];
   if (!inverter) {
     warnings.push(
-      `Ingen växelriktare i databasen klarar ${Math.round(design.inverter.requiredContinuousW)} W vid ${vsys} V.`,
+      opts.inverterComponentId
+        ? "Vald växelriktarmodell hittades inte i databasen."
+        : `Ingen växelriktare i databasen klarar ${Math.round(design.inverter.requiredContinuousW)} W vid ${vsys} V.`,
     );
   } else {
     add(inverter, 1, `≥ ${Math.round(design.inverter.requiredContinuousW)} W kontinuerligt.`);
+    const cont = num(inverter.specs.continuousW) ?? 0;
+    if (cont < design.inverter.requiredContinuousW) {
+      warnings.push(
+        `Vald växelriktare ger ${cont} W men behovet är ${Math.round(design.inverter.requiredContinuousW)} W.`,
+      );
+    }
   }
 
   // --- GX-enhet ---
   const gx = byType(components, "gx")[0];
   if (gx && design.distribution.recommendGx) add(gx, 1);
 
-  // --- SmartShunt ---
-  const shunt = byType(components, "accessory").find(
-    (c) => (num(c.specs.maxCurrentA) ?? 0) >= design.distribution.shuntRatingA,
-  );
+  // --- SmartShunt (vald modell eller minsta passande) ---
+  const shunt = opts.shuntComponentId
+    ? components.find((c) => c.typ === "accessory" && c.id === opts.shuntComponentId)
+    : eligibleShunts(design, components)[0];
   const shuntAdded = Boolean(shunt);
-  if (shunt) add(shunt, 1, `${design.distribution.shuntRatingA} A.`);
+  if (shunt) {
+    add(shunt, 1, `${design.distribution.shuntRatingA} A.`);
+    const maxA = num(shunt.specs.maxCurrentA) ?? 0;
+    if (maxA < design.distribution.shuntRatingA) {
+      warnings.push(`Vald shunt klarar ${maxA} A men behovet är ${design.distribution.shuntRatingA} A.`);
+    }
+  } else if (opts.shuntComponentId) {
+    warnings.push("Vald shuntmodell hittades inte i databasen.");
+  }
 
   // --- Busbar / Lynx (vid högre strömmar) ---
   if (design.maxContinuousDcCurrentA > 100) {
@@ -226,34 +242,42 @@ export function assembleBom(
     else warnings.push("Ingen RJ45 UTP-kabel i databasen.");
   }
 
-  // --- Huvudkabel (metervara, fram + retur) ---
+  // --- Huvudkabel (metervara, fram + retur; vald modell eller minsta passande) ---
   const area = design.mainCable.area.selectedAreaMm2;
-  const cable = byType(components, "cable")
-    .filter((c) => area !== null && (num(c.specs.areaMm2) ?? 0) >= area)
-    .sort((a, b) => (num(a.specs.areaMm2) ?? 0) - (num(b.specs.areaMm2) ?? 0))[0];
+  const cable = opts.cableComponentId
+    ? components.find((c) => c.typ === "cable" && c.id === opts.cableComponentId)
+    : eligibleCables(design, components)[0];
   if (area === null) {
     warnings.push("Kabelarea kunde inte bestämmas — se Steg 8.");
   } else if (!cable) {
-    warnings.push(`Ingen kabel ≥ ${area} mm² i databasen.`);
+    warnings.push(
+      opts.cableComponentId ? "Vald kabelmodell hittades inte i databasen." : `Ingen kabel ≥ ${area} mm² i databasen.`,
+    );
   } else {
     const meters = Math.ceil(opts.mainCableLengthM * 2); // fram + retur
     const cableArea = num(cable.specs.areaMm2);
+    const under = (cableArea ?? 0) < area;
     const note =
       `${meters} m (${opts.mainCableLengthM} m fram + retur), ${cableArea} mm²` +
-      (cableArea !== area ? ` (närmaste ≥ ${area} mm²).` : ".");
+      (cableArea !== area && !under ? ` (närmaste ≥ ${area} mm²).` : ".");
     add(cable, meters, note);
+    if (under) warnings.push(`Vald kabel ${cableArea} mm² är under behovet ${area} mm².`);
   }
 
-  // --- Säkring (huvudsäkring) ---
+  // --- Säkring (huvudsäkring, vald modell eller minsta passande) ---
   const fuseRating = design.mainCable.fuse.ratingA;
   if (fuseRating !== null) {
-    const fuse = byType(components, "fuse")
-      .filter((c) => (num(c.specs.ratingA) ?? 0) >= fuseRating)
-      .sort((a, b) => (num(a.specs.ratingA) ?? 0) - (num(b.specs.ratingA) ?? 0))[0];
+    const fuse = opts.fuseComponentId
+      ? components.find((c) => c.typ === "fuse" && c.id === opts.fuseComponentId)
+      : eligibleFuses(design, components)[0];
     if (!fuse) {
-      warnings.push(`Ingen säkring ≥ ${fuseRating} A i databasen.`);
+      warnings.push(
+        opts.fuseComponentId ? "Vald säkringsmodell hittades inte i databasen." : `Ingen säkring ≥ ${fuseRating} A i databasen.`,
+      );
     } else {
       add(fuse, 1, `Huvudsäkring ${num(fuse.specs.ratingA)} A (behov ≥ ${fuseRating} A).`);
+      const rating = num(fuse.specs.ratingA) ?? 0;
+      if (rating < fuseRating) warnings.push(`Vald säkring ${rating} A är under behovet ${fuseRating} A.`);
     }
   }
 

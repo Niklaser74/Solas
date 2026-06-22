@@ -39,8 +39,9 @@ export function defaultState(): ProjectState {
       panelQuantityOverride: null,
       customPanel: null,
     },
-    inverter: { hasInductiveLoads: true },
-    cable: { mainCableLengthM: 2.5, maxVoltDropPct: 3 },
+    inverter: { hasInductiveLoads: true, selectedComponentId: null },
+    distribution: { shuntComponentId: null },
+    cable: { mainCableLengthM: 2.5, maxVoltDropPct: 3, cableComponentId: null, fuseComponentId: null },
     layout: defaultLayout(),
   };
 }
@@ -61,6 +62,18 @@ function normalize(state: ProjectState): ProjectState {
       panelComponentId: state.solar?.panelComponentId ?? null,
       panelQuantityOverride: state.solar?.panelQuantityOverride ?? null,
       customPanel: state.solar?.customPanel ?? null,
+    },
+    inverter: {
+      ...state.inverter,
+      selectedComponentId: state.inverter?.selectedComponentId ?? null,
+    },
+    distribution: {
+      shuntComponentId: state.distribution?.shuntComponentId ?? null,
+    },
+    cable: {
+      ...state.cable,
+      cableComponentId: state.cable?.cableComponentId ?? null,
+      fuseComponentId: state.cable?.fuseComponentId ?? null,
     },
   };
 }
