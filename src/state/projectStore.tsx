@@ -22,6 +22,7 @@ export type ProjectAction =
   | { type: "patchBattery"; patch: Partial<ProjectState["battery"]> }
   | { type: "patchSolar"; patch: Partial<ProjectState["solar"]> }
   | { type: "patchInverter"; patch: Partial<ProjectState["inverter"]> }
+  | { type: "patchDistribution"; patch: Partial<ProjectState["distribution"]> }
   | { type: "patchCable"; patch: Partial<ProjectState["cable"]> }
   | { type: "setLayout"; layout: LayoutState }
   | { type: "load"; state: ProjectState };
@@ -36,6 +37,8 @@ function reducer(state: ProjectState, action: ProjectAction): ProjectState {
       return { ...state, solar: { ...state.solar, ...action.patch } };
     case "patchInverter":
       return { ...state, inverter: { ...state.inverter, ...action.patch } };
+    case "patchDistribution":
+      return { ...state, distribution: { ...state.distribution, ...action.patch } };
     case "patchCable":
       return { ...state, cable: { ...state.cable, ...action.patch } };
     case "setLayout":
@@ -124,6 +127,10 @@ export function useDesign(): DesignOutput {
           batteryQuantity: state.battery.quantityOverride ?? undefined,
           panelComponentId: state.solar.panelComponentId ?? undefined,
           panelQuantity: state.solar.panelQuantityOverride ?? undefined,
+          inverterComponentId: state.inverter.selectedComponentId ?? undefined,
+          shuntComponentId: state.distribution.shuntComponentId ?? undefined,
+          cableComponentId: state.cable.cableComponentId ?? undefined,
+          fuseComponentId: state.cable.fuseComponentId ?? undefined,
         },
         components,
       );

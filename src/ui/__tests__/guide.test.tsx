@@ -31,6 +31,13 @@ describe("Guide", () => {
     expect(screen.getByText("Totalt")).toBeInTheDocument();
   });
 
+  it("visar växelriktarväljare i steg 5 när flera modeller passar", () => {
+    renderApp();
+    fireEvent.click(screen.getByRole("button", { name: /Växelriktare/ }));
+    // Stuga (12 V) har två passande växelriktare → modellväljaren ska visas.
+    expect(screen.getByText("Växelriktarmodell")).toBeInTheDocument();
+  });
+
   it("kan placera en komponent i layout-steget", () => {
     renderApp();
     fireEvent.click(screen.getByText("Layout"));

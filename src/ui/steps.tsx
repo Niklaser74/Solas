@@ -10,6 +10,8 @@ import { applianceTemplates, sunRegions } from "../data/templates.js";
 import type { TemplateKey } from "../data/templates.js";
 import { SEED_COMPONENTS } from "../data/seed.js";
 import { CUSTOM_BATTERY_ID, CUSTOM_PANEL_ID } from "../data/customComponents.js";
+import { eligibleInverters, eligibleShunts, eligibleCables, eligibleFuses } from "../bom/selection.js";
+import type { Component } from "../data/types.js";
 import { useProject, useProjectDispatch, useDesign } from "../state/projectStore.js";
 import { LayoutCanvas } from "../layout/LayoutCanvas.js";
 import {
@@ -34,6 +36,12 @@ const specNum = (c: { specs: Record<string, unknown> }, key: string): number =>
   typeof c.specs[key] === "number" ? (c.specs[key] as number) : 0;
 
 const AUTO = "auto";
+
+/** Bygger väljaroptions ("Auto" + modeller) från en lista passande komponenter. */
+const autoModelOptions = (comps: readonly Component[]) => [
+  { value: AUTO, label: "Auto (rekommenderad)" },
+  ...comps.map((c) => ({ value: c.id, label: c.modell })),
+];
 
 /** Batterimodeller, sorterade på kapacitet, för modellväljaren. */
 const batteryModelOptions = [
@@ -493,7 +501,10 @@ export function SolarStep() {
 export function InverterStep() {
   const state = useProject();
   const dispatch = useProjectDispatch();
-  const { design } = useDesign();
+  const { design, bom } = useDesign();
+
+  const alternatives = design ? eligibleInverters(design) : [];
+  const invLine = bom?.items.find((i) => i.component.typ === "inverter");
 
   return (
     <Section title="Steg 5 — Växelriktare">
@@ -502,13 +513,32 @@ export function InverterStep() {
         checked={state.inverter.hasInductiveLoads}
         onChange={(hasInductiveLoads) => dispatch({ type: "patchInverter", patch: { hasInductiveLoads } })}
       />
+      {alternatives.length > 1 && (
+        <div className="grid">
+          <SelectField
+            label="Växelriktarmodell"
+            value={state.inverter.selectedComponentId ?? AUTO}
+            options={autoModelOptions(alternatives)}
+            onChange={(id) =>
+              dispatch({ type: "patchInverter", patch: { selectedComponentId: id === AUTO ? null : id } })
+            }
+          />
+        </div>
+      )}
       {design && (
         <ResultCard
           rows={[
             { label: "Kontinuerlig effekt", value: `≥ ${r0(design.inverter.requiredContinuousW)} W` },
             { label: "Surge-förmåga", value: `≥ ${r0(design.inverter.requiredSurgeW)} W` },
+            ...(invLine
+              ? [
+                  { label: "Vald växelriktare", value: invLine.component.modell },
+                  { label: "Kostnad", value: sek(invLine.lineTotalSek) },
+                ]
+              : []),
           ]}
           rationale={design.inverter.rationale}
+          warnings={bom?.warnings.filter((w) => /växelriktare/i.test(w))}
         />
       )}
     </Section>
@@ -518,9 +548,26 @@ export function InverterStep() {
 /* ------------------------------------------------------------------ Steg 6 */
 
 export function DistributionStep() {
+  const state = useProject();
+  const dispatch = useProjectDispatch();
   const { design } = useDesign();
+
+  const shuntAlternatives = design ? eligibleShunts(design) : [];
+
   return (
     <Section title="Steg 6 — DC-distribution & övervakning">
+      {shuntAlternatives.length > 1 && (
+        <div className="grid">
+          <SelectField
+            label="Shuntmodell"
+            value={state.distribution.shuntComponentId ?? AUTO}
+            options={autoModelOptions(shuntAlternatives)}
+            onChange={(id) =>
+              dispatch({ type: "patchDistribution", patch: { shuntComponentId: id === AUTO ? null : id } })
+            }
+          />
+        </div>
+      )}
       {design && (
         <ResultCard
           rows={[
@@ -558,6 +605,9 @@ export function CableStep() {
   const { design } = useDesign();
   const cable = design?.mainCable;
 
+  const cableAlternatives = design ? eligibleCables(design) : [];
+  const fuseAlternatives = design ? eligibleFuses(design) : [];
+
   return (
     <Section title="Steg 8 — Kabel & säkring">
       <p className="hint">
@@ -581,6 +631,22 @@ export function CableStep() {
           suffix="%"
           onChange={(maxVoltDropPct) => dispatch({ type: "patchCable", patch: { maxVoltDropPct } })}
         />
+        {cableAlternatives.length > 1 && (
+          <SelectField
+            label="Kabelmodell"
+            value={state.cable.cableComponentId ?? AUTO}
+            options={autoModelOptions(cableAlternatives)}
+            onChange={(id) => dispatch({ type: "patchCable", patch: { cableComponentId: id === AUTO ? null : id } })}
+          />
+        )}
+        {fuseAlternatives.length > 1 && (
+          <SelectField
+            label="Säkringsmodell"
+            value={state.cable.fuseComponentId ?? AUTO}
+            options={autoModelOptions(fuseAlternatives)}
+            onChange={(id) => dispatch({ type: "patchCable", patch: { fuseComponentId: id === AUTO ? null : id } })}
+          />
+        )}
       </div>
       {cable && (
         <ResultCard
