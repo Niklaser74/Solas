@@ -79,9 +79,14 @@ describe("assembleBom — Stuga AGM (handräknat facit)", () => {
     expect(cable?.quantity).toBe(5); // ceil(2.5 × 2)
   });
 
+  it("väljer minsta passande shunt (SmartShunt 300A)", () => {
+    const shunt = bom.items.find((i) => i.component.id.startsWith("shunt-"));
+    expect(shunt?.component.id).toBe("shunt-smartshunt-300");
+  });
+
   it("har 9 rader, korrekt total och grönt underlag", () => {
     expect(bom.items).toHaveLength(9); // + VE.Direct-kabel
-    expect(bom.totalSek).toBe(44927); // 44689 + 2 × 119 (VE.Direct)
+    expect(bom.totalSek).toBe(44727); // 44927 − 200 (300A-shunt 990 i st. f. 500A 1190)
     expect(bom.greenEligibleSek).toBe(36205); // batteri + paneler + MPPT (VE.Direct = ingen)
   });
 });

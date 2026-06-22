@@ -20,8 +20,8 @@ export interface DistributionInput {
 export interface DistributionResult {
   /** Minsta busbar/Lynx-strömtålighet, A (med marginal). */
   busbarMinCurrentA: number;
-  /** Rekommenderad shunt-storlek, A (närmaste vanliga: 500 eller 1000). */
-  shuntRatingA: 500 | 1000;
+  /** Rekommenderad shunt-storlek, A (närmaste vanliga: 300, 500 eller 1000). */
+  shuntRatingA: 300 | 500 | 1000;
   /** Rekommenderas en GX-enhet (Cerbo/GX Touch) för övervakning? */
   recommendGx: boolean;
   /** Kort motivering på svenska. */
@@ -33,7 +33,7 @@ export const BUSBAR_MARGIN = 1.3;
 
 /**
  * Ger vägledning för DC-distribution. Busbar dimensioneras med marginal över
- * max ström; shunt väljs till 500 A om strömmen ryms, annars 1000 A. GX
+ * max ström; shunt väljs till minsta passande storlek (300/500/1000 A). GX
  * rekommenderas alltid för system med övervakningsbehov (default).
  */
 export function sizeDistribution(input: DistributionInput): DistributionResult {
@@ -41,7 +41,8 @@ export function sizeDistribution(input: DistributionInput): DistributionResult {
   if (maxContinuousCurrentA < 0) throw new RangeError("maxContinuousCurrentA kan inte vara negativ.");
 
   const busbarMinCurrentA = maxContinuousCurrentA * BUSBAR_MARGIN;
-  const shuntRatingA: 500 | 1000 = maxContinuousCurrentA <= 500 ? 500 : 1000;
+  const shuntRatingA: 300 | 500 | 1000 =
+    maxContinuousCurrentA <= 300 ? 300 : maxContinuousCurrentA <= 500 ? 500 : 1000;
 
   const rationale =
     `Busbar/Lynx ≥ ${Math.round(busbarMinCurrentA)} A (max ${Math.round(maxContinuousCurrentA)} A ` +
