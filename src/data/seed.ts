@@ -224,6 +224,18 @@ export const SEED_COMPONENTS: readonly Component[] = [
     gronTeknikKategori: "ingen",
   },
   {
+    // Platshållare: Victron tillverkar ingen officiell 300A SmartShunt
+    // (minsta är 500A). Artikelnr/pris är preliminära tills riktiga uppgifter
+    // finns. Måste ligga före 500A-shunten — shunt-valet tar första passande.
+    id: "shunt-smartshunt-300",
+    typ: "accessory",
+    modell: "SmartShunt 300A/50mV",
+    specs: { maxCurrentA: 300 },
+    prisSek: 990,
+    aterforsaljare: "exempel",
+    gronTeknikKategori: "ingen",
+  },
+  {
     id: "shunt-smartshunt-500",
     typ: "accessory",
     modell: "SmartShunt 500A/50mV",
