@@ -1,8 +1,9 @@
 /** Fysisk layout-planerare (Steg 7) — 2D zon-canvas i SVG.
  *
- *  Rita en fri yta, placera komponenter i verklig storlek, dra kabel mellan
- *  anslutningspunkter och få längder som matar Steg 8. Ingen extern canvas-lib
- *  — ren SVG + pointer-events. Rotation ignoreras i clearance/bounds i v1. */
+ *  Rita en fri yta, placera komponenter i verklig storlek (med produktbild när
+ *  sådan finns), dra kabel mellan anslutningspunkter och få längder som matar
+ *  Steg 8. Egna produkter skapas i biblioteket via ComponentEditor. Ingen extern
+ *  canvas-lib — ren SVG + pointer-events. Rotation ignoreras i clearance/bounds. */
 
 import { useMemo, useRef, useState } from "react";
 import { useProject, useProjectDispatch } from "../state/projectStore.js";
@@ -10,6 +11,7 @@ import type { LayoutPlacement, LayoutRun, LayoutState } from "../state/types.js"
 import { SEED_COMPONENTS } from "../data/seed.js";
 import type { Component } from "../data/types.js";
 import { placeableDef, paletteComponents } from "./layoutComponents.js";
+import { ComponentEditor } from "./ComponentEditor.js";
 import {
   connectionWorldPos,
   manhattanPath,
@@ -38,40 +40,45 @@ const LAYOUT_ORDER: Partial<Record<Component["typ"], number>> = {
 const uid = () =>
   typeof crypto !== "undefined" && "randomUUID" in crypto ? crypto.randomUUID() : `id-${Math.random().toString(36).slice(2)}`;
 
-const byId = new Map<string, Component>(SEED_COMPONENTS.map((c) => [c.id, c]));
-
 interface PointRef {
   placementId: string;
   pointId: string;
 }
 
-function worldPoint(p: LayoutPlacement): (pointId: string) => Point | null {
-  const component = byId.get(p.componentId);
-  if (!component) return () => null;
-  const def = placeableDef(component);
-  return (pointId: string) => {
-    const local = def.points.find((pt) => pt.id === pointId);
-    if (!local) return null;
-    return connectionWorldPos({ placement: p, size: def.size, local });
-  };
-}
-
 export function LayoutCanvas() {
-  const { layout } = useProject();
+  const { layout, componentLibrary } = useProject();
   const dispatch = useProjectDispatch();
   const svgRef = useRef<SVGSVGElement>(null);
   const [selected, setSelected] = useState<string | null>(null);
   const [pending, setPending] = useState<PointRef | null>(null);
   const [slack, setSlack] = useState(15);
+  const [editing, setEditing] = useState<{ component?: Component } | null>(null);
   const dragRef = useRef<{ id: string; dx: number; dy: number } | null>(null);
 
   const scale = Math.min(MAX_W / layout.zone.width, MAX_H / layout.zone.height);
   const setLayout = (next: LayoutState) => dispatch({ type: "setLayout", layout: next });
 
+  // Seed + användarens egna produkter, uppslagsbara per id.
+  const byId = useMemo(
+    () => new Map<string, Component>([...SEED_COMPONENTS, ...componentLibrary].map((c) => [c.id, c])),
+    [componentLibrary],
+  );
+
   const placementsById = useMemo(
     () => new Map(layout.placements.map((p) => [p.id, p])),
     [layout.placements],
   );
+
+  const worldPoint = (p: LayoutPlacement): ((pointId: string) => Point | null) => {
+    const component = byId.get(p.componentId);
+    if (!component) return () => null;
+    const def = placeableDef(component);
+    return (pointId: string) => {
+      const local = def.points.find((pt) => pt.id === pointId);
+      if (!local) return null;
+      return connectionWorldPos({ placement: p, size: def.size, local });
+    };
+  };
 
   /* ---- mutationer ---- */
   const addComponent = (componentId: string) => {
@@ -201,6 +208,16 @@ export function LayoutCanvas() {
     warnings.push(`${n} hamnar utanför zonen.`);
   }
 
+  /* ---- bibliotek ---- */
+  const saveLibrary = (component: Component) => {
+    dispatch({ type: "upsertLibraryComponent", component });
+    setEditing(null);
+  };
+  const removeLibrary = (id: string) => {
+    if (typeof window !== "undefined" && !window.confirm("Ta bort produkten ur biblioteket?")) return;
+    dispatch({ type: "removeLibraryComponent", id });
+  };
+
   return (
     <div className="layout">
       <div className="palette">
@@ -210,6 +227,23 @@ export function LayoutCanvas() {
             + {c.modell}
           </button>
         ))}
+        {componentLibrary.map((c) => (
+          <span key={c.id} className="lib-chip">
+            <button onClick={() => addComponent(c.id)} title={c.modell}>
+              {c.bildUrl ? "🖼 " : "+ "}
+              {c.modell}
+            </button>
+            <button className="chip-edit" title="Redigera" onClick={() => setEditing({ component: c })}>
+              ✎
+            </button>
+            <button className="chip-edit" title="Ta bort ur biblioteket" onClick={() => removeLibrary(c.id)}>
+              ✕
+            </button>
+          </span>
+        ))}
+        <button className="new-product" onClick={() => setEditing({})}>
+          ＋ Egen produkt
+        </button>
         {layout.placements.length > 1 && (
           <button
             className="auto-place"
@@ -300,16 +334,31 @@ export function LayoutCanvas() {
           const def = placeableDef(component);
           const cx = (p.x + def.size.width / 2) * scale;
           const cy = (p.y + def.size.height / 2) * scale;
+          const w = def.size.width * scale;
+          const h = def.size.height * scale;
           return (
             <g key={p.id} transform={`rotate(${p.rotation} ${cx} ${cy})`}>
-              <rect
-                x={p.x * scale}
-                y={p.y * scale}
-                width={def.size.width * scale}
-                height={def.size.height * scale}
-                className={`comp-rect${selected === p.id ? " selected" : ""}`}
-                onPointerDown={(e) => onPointerDownPlacement(e, p)}
-              />
+              {component.bildUrl ? (
+                <image
+                  href={component.bildUrl}
+                  x={p.x * scale}
+                  y={p.y * scale}
+                  width={w}
+                  height={h}
+                  preserveAspectRatio="xMidYMid meet"
+                  className={`comp-image${selected === p.id ? " selected" : ""}`}
+                  onPointerDown={(e) => onPointerDownPlacement(e, p)}
+                />
+              ) : (
+                <rect
+                  x={p.x * scale}
+                  y={p.y * scale}
+                  width={w}
+                  height={h}
+                  className={`comp-rect${selected === p.id ? " selected" : ""}`}
+                  onPointerDown={(e) => onPointerDownPlacement(e, p)}
+                />
+              )}
               <text x={(p.x + 4) * scale} y={(p.y + 14) * scale} className="comp-label">
                 {component.modell}
               </text>
@@ -381,6 +430,14 @@ export function LayoutCanvas() {
             })}
           </tbody>
         </table>
+      )}
+
+      {editing && (
+        <ComponentEditor
+          existing={editing.component ?? null}
+          onSave={saveLibrary}
+          onClose={() => setEditing(null)}
+        />
       )}
     </div>
   );

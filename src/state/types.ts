@@ -3,7 +3,7 @@
 import type { Appliance } from "../engine/load.js";
 import type { SystemVoltage } from "../engine/units.js";
 import type { BatteryChemistry } from "../engine/battery.js";
-import type { ProjectType } from "../data/types.js";
+import type { Component, ProjectType } from "../data/types.js";
 
 export interface ProjectState {
   namn: string;
@@ -54,6 +54,11 @@ export interface ProjectState {
     fuseComponentId: string | null;
   };
   layout: LayoutState;
+  /**
+   * Användarens egna produkter (bild, mått, anslutningspunkter) som kan placeras
+   * i layouten. Lagras i projektet och autosparas.
+   */
+  componentLibrary: Component[];
 }
 
 /** En komponent placerad i layouten. */

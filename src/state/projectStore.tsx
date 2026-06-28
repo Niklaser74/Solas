@@ -25,6 +25,8 @@ export type ProjectAction =
   | { type: "patchDistribution"; patch: Partial<ProjectState["distribution"]> }
   | { type: "patchCable"; patch: Partial<ProjectState["cable"]> }
   | { type: "setLayout"; layout: LayoutState }
+  | { type: "upsertLibraryComponent"; component: Component }
+  | { type: "removeLibraryComponent"; id: string }
   | { type: "load"; state: ProjectState };
 
 function reducer(state: ProjectState, action: ProjectAction): ProjectState {
@@ -43,6 +45,31 @@ function reducer(state: ProjectState, action: ProjectAction): ProjectState {
       return { ...state, cable: { ...state.cable, ...action.patch } };
     case "setLayout":
       return { ...state, layout: action.layout };
+    case "upsertLibraryComponent": {
+      const exists = state.componentLibrary.some((c) => c.id === action.component.id);
+      return {
+        ...state,
+        componentLibrary: exists
+          ? state.componentLibrary.map((c) => (c.id === action.component.id ? action.component : c))
+          : [...state.componentLibrary, action.component],
+      };
+    }
+    case "removeLibraryComponent": {
+      const removed = new Set(
+        state.layout.placements.filter((p) => p.componentId === action.id).map((p) => p.id),
+      );
+      return {
+        ...state,
+        componentLibrary: state.componentLibrary.filter((c) => c.id !== action.id),
+        layout: {
+          ...state.layout,
+          placements: state.layout.placements.filter((p) => p.componentId !== action.id),
+          runs: state.layout.runs.filter(
+            (r) => !removed.has(r.fromPlacementId) && !removed.has(r.toPlacementId),
+          ),
+        },
+      };
+    }
     case "load":
       return action.state;
   }

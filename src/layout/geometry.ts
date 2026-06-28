@@ -130,6 +130,26 @@ export function outOfBounds(
     .map((b) => b.id);
 }
 
+const clamp = (v: number, lo: number, hi: number): number => Math.min(hi, Math.max(lo, v));
+
+/**
+ * Omvandlar en klickpunkt i en visad produktbild (px, från bildens övre vänstra
+ * hörn) till en lokal anslutningspunkt i mm på komponenten. Klickpunkten klampas
+ * in i bilden så att punkter aldrig hamnar utanför komponentens mått.
+ */
+export function imagePointToMm(args: {
+  clickPx: Point;
+  /** Bildens visade storlek, px. */
+  displayPx: SizeGeom;
+  /** Komponentens verkliga mått, mm. */
+  realMm: SizeGeom;
+}): Point {
+  const { clickPx, displayPx, realMm } = args;
+  const fx = displayPx.width > 0 ? clamp(clickPx.x, 0, displayPx.width) / displayPx.width : 0;
+  const fy = displayPx.height > 0 ? clamp(clickPx.y, 0, displayPx.height) / displayPx.height : 0;
+  return { x: Math.round(fx * realMm.width), y: Math.round(fy * realMm.height) };
+}
+
 /** En komponent som ska auto-placeras: fotavtryck + valfri sorteringsvikt. */
 export interface ArrangeItem {
   id: string;

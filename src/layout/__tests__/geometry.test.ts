@@ -9,6 +9,7 @@ import {
   outOfBounds,
   autoArrange,
   firstFreeSpot,
+  imagePointToMm,
 } from "../geometry.js";
 
 describe("polylineLengthMm", () => {
@@ -141,6 +142,31 @@ describe("autoArrange", () => {
 
   it("är tom för inga komponenter", () => {
     expect(autoArrange([], zone)).toEqual([]);
+  });
+});
+
+describe("imagePointToMm", () => {
+  it("skalar klickpunkt i visad bild till mm efter måtten", () => {
+    const p = imagePointToMm({
+      clickPx: { x: 180, y: 70 },
+      displayPx: { width: 360, height: 280 },
+      realMm: { width: 200, height: 150 },
+    });
+    // 180/360 = 0.5 → 100 mm, 70/280 = 0.25 → 37.5 → 38 mm.
+    expect(p).toEqual({ x: 100, y: 38 });
+  });
+
+  it("klampar punkter utanför bilden till kanten", () => {
+    const p = imagePointToMm({
+      clickPx: { x: -10, y: 999 },
+      displayPx: { width: 360, height: 280 },
+      realMm: { width: 200, height: 150 },
+    });
+    expect(p).toEqual({ x: 0, y: 150 });
+  });
+
+  it("ger 0 när bilden saknar storlek", () => {
+    expect(imagePointToMm({ clickPx: { x: 5, y: 5 }, displayPx: { width: 0, height: 0 }, realMm: { width: 200, height: 150 } })).toEqual({ x: 0, y: 0 });
   });
 });
 

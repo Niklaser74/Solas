@@ -42,6 +42,7 @@ export function App() {
         design,
         bom,
         layout: project.layout,
+        componentLibrary: project.componentLibrary,
         includeWiring: opts?.wiring ?? false,
         includeMounting: opts?.mounting ?? false,
         watermark: true,

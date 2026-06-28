@@ -43,6 +43,7 @@ export function defaultState(): ProjectState {
     distribution: { shuntComponentId: null },
     cable: { mainCableLengthM: 2.5, maxVoltDropPct: 3, cableComponentId: null, fuseComponentId: null },
     layout: defaultLayout(),
+    componentLibrary: [],
   };
 }
 
@@ -51,6 +52,7 @@ function normalize(state: ProjectState): ProjectState {
   return {
     ...state,
     layout: state.layout ?? defaultLayout(),
+    componentLibrary: state.componentLibrary ?? [],
     battery: {
       ...state.battery,
       selectedComponentId: state.battery?.selectedComponentId ?? null,
