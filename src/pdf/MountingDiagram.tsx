@@ -22,12 +22,10 @@ const styles = StyleSheet.create({
   disclaimer: { marginTop: 18, fontSize: 8, color: "#8A8980" },
 });
 
-const byId = new Map<string, Component>(SEED_COMPONENTS.map((c) => [c.id, c]));
-
 const r1 = (n: number) => new Intl.NumberFormat("sv-SE", { maximumFractionDigits: 1 }).format(n);
 
 /** Absolut mm-position för en anslutningspunkt på en placering. */
-function worldPoint(p: LayoutPlacement, pointId: string): Point | null {
+function worldPoint(byId: Map<string, Component>, p: LayoutPlacement, pointId: string): Point | null {
   const component = byId.get(p.componentId);
   if (!component) return null;
   const def = placeableDef(component);
@@ -36,8 +34,16 @@ function worldPoint(p: LayoutPlacement, pointId: string): Point | null {
   return connectionWorldPos({ placement: p, size: def.size, local });
 }
 
-export function MountingDiagram({ layout }: { layout: LayoutState }) {
+export function MountingDiagram({
+  layout,
+  components = [],
+}: {
+  layout: LayoutState;
+  /** Egna produkter utöver seeden, så placeringarna kan slås upp. */
+  components?: Component[];
+}) {
   const { zone, placements, runs } = layout;
+  const byId = new Map<string, Component>([...SEED_COMPONENTS, ...components].map((c) => [c.id, c]));
   const placementById = new Map(placements.map((p) => [p.id, p]));
   const scale = Math.min(MAX_W / zone.width, MAX_H / zone.height);
   const svgW = zone.width * scale;
@@ -59,8 +65,8 @@ export function MountingDiagram({ layout }: { layout: LayoutState }) {
             const from = placementById.get(run.fromPlacementId);
             const to = placementById.get(run.toPlacementId);
             if (!from || !to) return null;
-            const a = worldPoint(from, run.fromPointId);
-            const b = worldPoint(to, run.toPointId);
+            const a = worldPoint(byId, from, run.fromPointId);
+            const b = worldPoint(byId, to, run.toPointId);
             if (!a || !b) return null;
             const path = manhattanPath(a, b);
             const points = path.map((p) => `${p.x * scale},${p.y * scale}`).join(" ");

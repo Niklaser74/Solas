@@ -4,6 +4,7 @@ import { Document, Page, Text, View, StyleSheet } from "@react-pdf/renderer";
 import type { DesignSystemResult } from "../engine/index.js";
 import type { Bom } from "../bom/assembleBom.js";
 import type { LayoutState } from "../state/types.js";
+import type { Component } from "../data/types.js";
 import { WiringDiagram } from "./WiringDiagram.js";
 import { MountingDiagram } from "./MountingDiagram.js";
 
@@ -47,6 +48,8 @@ export interface BomDocumentProps {
   bom: Bom;
   /** Fysisk layout (Steg 7) — krävs för montageschemat. */
   layout?: LayoutState;
+  /** Egna produkter, så montageschemat kan slå upp och rita dem. */
+  componentLibrary?: Component[];
   /** Lägg till kopplingsschema-sida. */
   includeWiring?: boolean;
   /** Lägg till montageschema-sida. */
@@ -62,6 +65,7 @@ export function BomDocument({
   design,
   bom,
   layout,
+  componentLibrary = [],
   includeWiring = false,
   includeMounting = false,
   watermark = true,
@@ -137,7 +141,12 @@ export function BomDocument({
       </Page>
 
       {includeWiring && <WiringDiagram design={design} bom={bom} />}
-      {includeMounting && <MountingDiagram layout={layout ?? { zone: { width: 1000, height: 600 }, placements: [], runs: [] }} />}
+      {includeMounting && (
+        <MountingDiagram
+          layout={layout ?? { zone: { width: 1000, height: 600 }, placements: [], runs: [] }}
+          components={componentLibrary}
+        />
+      )}
     </Document>
   );
 }

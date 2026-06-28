@@ -78,6 +78,12 @@ export interface Component {
   matt?: Dimensions;
   anslutningspunkter?: ConnectionPoint[];
   monteringskrav?: MountingRequirements;
+  /**
+   * Produktbild som ritas i layouten i stället för en platshållare. Lagras
+   * normalt som en (nedskalad) data-URL för egna produkter, men kan vara vilken
+   * bild-URL som helst.
+   */
+  bildUrl?: string;
   /** Pris i SEK. */
   prisSek: number;
   aterforsaljare?: string;

@@ -4,6 +4,7 @@ import { useState } from "react";
 import type { DesignSystemResult } from "../engine/index.js";
 import type { Bom } from "../bom/assembleBom.js";
 import type { LayoutState } from "../state/types.js";
+import type { Component } from "../data/types.js";
 
 export interface ExportInput {
   namn: string;
@@ -11,6 +12,8 @@ export interface ExportInput {
   design: DesignSystemResult;
   bom: Bom;
   layout?: LayoutState;
+  /** Egna produkter, så montageschemat kan rita dem. */
+  componentLibrary?: Component[];
   includeWiring?: boolean;
   includeMounting?: boolean;
   watermark?: boolean;
@@ -38,6 +41,7 @@ export function usePdfExport() {
           design: input.design,
           bom: input.bom,
           layout: input.layout,
+          componentLibrary: input.componentLibrary,
           includeWiring: input.includeWiring,
           includeMounting: input.includeMounting,
           watermark: input.watermark ?? true,
