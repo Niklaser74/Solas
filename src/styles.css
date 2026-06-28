@@ -231,6 +231,13 @@ thead th {
 .layout { display: flex; flex-direction: column; gap: var(--ds-space-3); }
 .palette { display: flex; flex-wrap: wrap; gap: var(--ds-space-2); align-items: center; font-size: 13px; color: var(--ds-stone-700); }
 .palette button { font-size: 12px; padding: 5px 10px; }
+.palette button.auto-place {
+  margin-left: auto;
+  font-weight: 600;
+  color: var(--ds-white);
+  background: var(--ds-accent);
+  border-color: var(--ds-accent);
+}
 .layout-controls { display: flex; flex-wrap: wrap; gap: var(--ds-space-3); align-items: flex-end; }
 .layout-controls label { display: flex; flex-direction: column; gap: 3px; font-size: 12px; color: var(--ds-stone-700); }
 .layout-controls input {
