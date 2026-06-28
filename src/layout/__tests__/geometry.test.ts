@@ -7,6 +7,8 @@ import {
   cableRunLengthM,
   clearanceViolations,
   outOfBounds,
+  autoArrange,
+  firstFreeSpot,
 } from "../geometry.js";
 
 describe("polylineLengthMm", () => {
@@ -92,5 +94,68 @@ describe("outOfBounds", () => {
       { id: "ute", x: 950, y: 10, width: 100, height: 100 },
     ];
     expect(outOfBounds(boxes, { width: 1000, height: 600 })).toEqual(["ute"]);
+  });
+});
+
+describe("autoArrange", () => {
+  const zone = { width: 1000, height: 600 };
+
+  it("sorterar efter order (lägre först) i en rad", () => {
+    const out = autoArrange(
+      [
+        { id: "inv", width: 110, height: 235, order: 5 },
+        { id: "batt", width: 200, height: 200, order: 0 },
+        { id: "fuse", width: 70, height: 45, order: 1 },
+      ],
+      zone,
+    );
+    expect(out.map((p) => p.id)).toEqual(["batt", "fuse", "inv"]);
+    // Vänster→höger, stigande x.
+    expect(out[0].x).toBeLessThan(out[1].x);
+    expect(out[1].x).toBeLessThan(out[2].x);
+  });
+
+  it("placerar utan överlapp eller clearance-brott", () => {
+    const items = [
+      { id: "a", width: 200, height: 200, clearanceMm: 50, order: 0 },
+      { id: "b", width: 200, height: 200, clearanceMm: 50, order: 1 },
+      { id: "c", width: 200, height: 200, clearanceMm: 50, order: 2 },
+    ];
+    const pos = new Map(autoArrange(items, zone).map((p) => [p.id, p]));
+    const boxes = items.map((it) => ({ ...it, x: pos.get(it.id)!.x, y: pos.get(it.id)!.y }));
+    expect(clearanceViolations(boxes)).toEqual([]);
+  });
+
+  it("bryter till ny rad när komponenterna inte ryms på bredden", () => {
+    const narrow = { width: 500, height: 600 };
+    const items = [
+      { id: "a", width: 200, height: 100 },
+      { id: "b", width: 200, height: 100 },
+      { id: "c", width: 200, height: 100 },
+    ];
+    const out = autoArrange(items, narrow);
+    // c ryms inte på rad 1 (200+gap+200+gap+200 > 500) → hamnar lägre.
+    const byId = new Map(out.map((p) => [p.id, p]));
+    expect(byId.get("c")!.y).toBeGreaterThan(byId.get("a")!.y);
+  });
+
+  it("är tom för inga komponenter", () => {
+    expect(autoArrange([], zone)).toEqual([]);
+  });
+});
+
+describe("firstFreeSpot", () => {
+  const zone = { width: 1000, height: 600 };
+
+  it("hittar en plats som inte krockar med befintliga lådor", () => {
+    const boxes = [{ id: "a", x: 20, y: 20, width: 200, height: 200, clearanceMm: 0 }];
+    const spot = firstFreeSpot(boxes, { width: 100, height: 100 }, zone);
+    const candidate = { id: "new", x: spot.x, y: spot.y, width: 100, height: 100 };
+    expect(clearanceViolations([...boxes, candidate])).toEqual([]);
+    expect(outOfBounds([candidate], zone)).toEqual([]);
+  });
+
+  it("placerar i hörnet när zonen är tom", () => {
+    expect(firstFreeSpot([], { width: 100, height: 100 }, zone)).toEqual({ x: 20, y: 20 });
   });
 });

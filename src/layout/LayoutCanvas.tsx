@@ -16,11 +16,24 @@ import {
   cableRunLengthM,
   clearanceViolations,
   outOfBounds,
+  autoArrange,
+  firstFreeSpot,
   type Point,
 } from "./geometry.js";
 
 const MAX_W = 640;
 const MAX_H = 420;
+
+/** Logiskt el-flöde vänster→höger vid auto-placering (lägre = tidigare). */
+const LAYOUT_ORDER: Partial<Record<Component["typ"], number>> = {
+  battery: 0,
+  fuse: 1,
+  busbar: 2,
+  accessory: 3,
+  mppt: 4,
+  inverter: 5,
+  gx: 6,
+};
 
 const uid = () =>
   typeof crypto !== "undefined" && "randomUUID" in crypto ? crypto.randomUUID() : `id-${Math.random().toString(36).slice(2)}`;
@@ -61,14 +74,47 @@ export function LayoutCanvas() {
   );
 
   /* ---- mutationer ---- */
-  const addComponent = (componentId: string) =>
+  const addComponent = (componentId: string) => {
+    const component = byId.get(componentId);
+    const def = component ? placeableDef(component) : null;
+    const existing = layout.placements.map((p) => {
+      const d = placeableDef(byId.get(p.componentId)!);
+      return { id: p.id, x: p.x, y: p.y, width: d.size.width, height: d.size.height, clearanceMm: d.clearanceMm };
+    });
+    const spot = def
+      ? firstFreeSpot(existing, def.size, layout.zone, { gapMm: def.clearanceMm })
+      : { x: 40, y: 40 };
     setLayout({
       ...layout,
       placements: [
         ...layout.placements,
-        { id: uid(), componentId, x: 40, y: 40, rotation: 0 },
+        { id: uid(), componentId, x: spot.x, y: spot.y, rotation: 0 },
       ],
     });
+  };
+
+  /** Placerar alla komponenter snyggt: logisk ordning, radvis, utan överlapp. */
+  const autoPlace = () => {
+    const items = layout.placements.map((p) => {
+      const component = byId.get(p.componentId)!;
+      const def = placeableDef(component);
+      return {
+        id: p.id,
+        width: def.size.width,
+        height: def.size.height,
+        clearanceMm: def.clearanceMm,
+        order: LAYOUT_ORDER[component.typ] ?? 9,
+      };
+    });
+    const pos = new Map(autoArrange(items, layout.zone).map((q) => [q.id, q]));
+    setLayout({
+      ...layout,
+      placements: layout.placements.map((p) => {
+        const q = pos.get(p.id);
+        return q ? { ...p, x: q.x, y: q.y, rotation: 0 } : p;
+      }),
+    });
+  };
 
   const updatePlacement = (id: string, patch: Partial<LayoutPlacement>) =>
     setLayout({
@@ -164,6 +210,15 @@ export function LayoutCanvas() {
             + {c.modell}
           </button>
         ))}
+        {layout.placements.length > 1 && (
+          <button
+            className="auto-place"
+            onClick={autoPlace}
+            title="Ordna alla komponenter snyggt i logisk ordning utan överlapp"
+          >
+            ✨ Placera automatiskt
+          </button>
+        )}
       </div>
 
       <div className="layout-controls">
@@ -198,7 +253,8 @@ export function LayoutCanvas() {
       </div>
 
       <p className="hint">
-        Klicka på en anslutningspunkt (●) och sedan en annan för att dra kabel. Dra komponenter för att flytta dem.
+        Klicka på en anslutningspunkt (●) och sedan en annan för att dra kabel. Dra komponenter för att flytta dem,
+        eller låt <strong>✨ Placera automatiskt</strong> ordna dem snyggt i logisk ordning utan överlapp.
         {pending && " — välj målpunkt…"}
       </p>
 
