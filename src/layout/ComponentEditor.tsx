@@ -105,17 +105,20 @@ export function ComponentEditor({
   const save = () => {
     if (!namn.trim()) return setError("Ange ett namn.");
     if (width <= 0 || height <= 0) return setError("Bredd och höjd måste vara större än 0.");
+    // Bevara övriga fält (artikelnr, specs, pris, kategori, orientering) när en
+    // befintlig del redigeras — bara det som syns i editorn ändras.
+    const monteringskrav = { ...existing?.monteringskrav };
+    if (clearance > 0) monteringskrav.clearanceMm = clearance;
+    else delete monteringskrav.clearanceMm;
     const component: Component = {
+      ...(existing ?? { specs: {}, prisSek: 0, gronTeknikKategori: "ingen" as const }),
       id: existing?.id ?? uid(),
       typ,
       modell: namn.trim(),
-      specs: existing?.specs ?? {},
       matt: { width, height, depth: existing?.matt?.depth ?? 0 },
       anslutningspunkter: points.map((p) => ({ id: p.id, typ: p.typ, x: p.x, y: p.y })),
-      monteringskrav: clearance > 0 ? { clearanceMm: clearance } : undefined,
+      monteringskrav: Object.keys(monteringskrav).length > 0 ? monteringskrav : undefined,
       bildUrl,
-      prisSek: existing?.prisSek ?? 0,
-      gronTeknikKategori: existing?.gronTeknikKategori ?? "ingen",
     };
     onSave(component);
   };

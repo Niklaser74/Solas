@@ -9,7 +9,7 @@ import { useMemo, useRef, useState } from "react";
 import { useProject, useProjectDispatch } from "../state/projectStore.js";
 import type { LayoutPlacement, LayoutRun, LayoutState } from "../state/types.js";
 import { SEED_COMPONENTS } from "../data/seed.js";
-import type { Component } from "../data/types.js";
+import type { Component, ConnectionType } from "../data/types.js";
 import { placeableDef, paletteComponents } from "./layoutComponents.js";
 import { ComponentEditor } from "./ComponentEditor.js";
 import {
@@ -58,11 +58,16 @@ export function LayoutCanvas() {
   const scale = Math.min(MAX_W / layout.zone.width, MAX_H / layout.zone.height);
   const setLayout = (next: LayoutState) => dispatch({ type: "setLayout", layout: next });
 
-  // Seed + användarens egna produkter, uppslagsbara per id.
+  // Seed + användarens egna produkter/overrides, uppslagsbara per id.
+  // Biblioteket läggs sist så en override vinner över standarddelen.
   const byId = useMemo(
     () => new Map<string, Component>([...SEED_COMPONENTS, ...componentLibrary].map((c) => [c.id, c])),
     [componentLibrary],
   );
+  const seedIds = useMemo(() => new Set(SEED_COMPONENTS.map((c) => c.id)), []);
+  const isOverridden = (id: string) => componentLibrary.some((c) => c.id === id);
+  // Egna produkter (inte overrides av standarddelar).
+  const customComponents = componentLibrary.filter((c) => !seedIds.has(c.id));
 
   const placementsById = useMemo(
     () => new Map(layout.placements.map((p) => [p.id, p])),
@@ -213,8 +218,27 @@ export function LayoutCanvas() {
     dispatch({ type: "upsertLibraryComponent", component });
     setEditing(null);
   };
+  // Öppnar editorn förifylld med delens faktiska mått och anslutningspunkter
+  // (även de som annars syntetiseras), så befintliga delar går att finjustera.
+  const editComponent = (c: Component) => {
+    const def = placeableDef(c);
+    setEditing({
+      component: {
+        ...c,
+        matt: c.matt ?? { width: def.size.width, height: def.size.height, depth: 0 },
+        anslutningspunkter:
+          c.anslutningspunkter && c.anslutningspunkter.length > 0
+            ? c.anslutningspunkter
+            : def.points.map((p) => ({ id: p.id, typ: p.typ as ConnectionType, x: p.x, y: p.y })),
+      },
+    });
+  };
   const removeLibrary = (id: string) => {
     if (typeof window !== "undefined" && !window.confirm("Ta bort produkten ur biblioteket?")) return;
+    dispatch({ type: "removeLibraryComponent", id });
+  };
+  const resetComponent = (id: string) => {
+    if (typeof window !== "undefined" && !window.confirm("Återställ delen till standard?")) return;
     dispatch({ type: "removeLibraryComponent", id });
   };
 
@@ -222,18 +246,32 @@ export function LayoutCanvas() {
     <div className="layout">
       <div className="palette">
         <span>Lägg till:</span>
-        {paletteComponents(SEED_COMPONENTS).map((c) => (
-          <button key={c.id} onClick={() => addComponent(c.id)} title={c.modell}>
-            + {c.modell}
-          </button>
-        ))}
-        {componentLibrary.map((c) => (
+        {paletteComponents(SEED_COMPONENTS).map((seed) => {
+          const c = byId.get(seed.id) ?? seed;
+          return (
+            <span key={seed.id} className="lib-chip">
+              <button onClick={() => addComponent(seed.id)} title={c.modell}>
+                {c.bildUrl ? "🖼 " : "+ "}
+                {c.modell}
+              </button>
+              <button className="chip-edit" title="Redigera" onClick={() => editComponent(c)}>
+                ✎
+              </button>
+              {isOverridden(seed.id) && (
+                <button className="chip-edit" title="Återställ till standard" onClick={() => resetComponent(seed.id)}>
+                  ↺
+                </button>
+              )}
+            </span>
+          );
+        })}
+        {customComponents.map((c) => (
           <span key={c.id} className="lib-chip">
             <button onClick={() => addComponent(c.id)} title={c.modell}>
               {c.bildUrl ? "🖼 " : "+ "}
               {c.modell}
             </button>
-            <button className="chip-edit" title="Redigera" onClick={() => setEditing({ component: c })}>
+            <button className="chip-edit" title="Redigera" onClick={() => editComponent(c)}>
               ✎
             </button>
             <button className="chip-edit" title="Ta bort ur biblioteket" onClick={() => removeLibrary(c.id)}>

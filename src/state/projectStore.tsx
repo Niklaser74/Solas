@@ -55,12 +55,19 @@ function reducer(state: ProjectState, action: ProjectAction): ProjectState {
       };
     }
     case "removeLibraryComponent": {
+      const libraryWithout = state.componentLibrary.filter((c) => c.id !== action.id);
+      // Override av en standarddel? Då återställs bara delen — placeringarna
+      // ligger kvar och slås nu upp mot seed-versionen igen.
+      const isSeedOverride = SEED_COMPONENTS.some((c) => c.id === action.id);
+      if (isSeedOverride) return { ...state, componentLibrary: libraryWithout };
+
+      // Egen produkt tas bort helt, inklusive dess placeringar och kabelrun.
       const removed = new Set(
         state.layout.placements.filter((p) => p.componentId === action.id).map((p) => p.id),
       );
       return {
         ...state,
-        componentLibrary: state.componentLibrary.filter((c) => c.id !== action.id),
+        componentLibrary: libraryWithout,
         layout: {
           ...state.layout,
           placements: state.layout.placements.filter((p) => p.componentId !== action.id),
